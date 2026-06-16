@@ -6,6 +6,8 @@ SRC="/home/wes/Downloads/BerkleyFCAPROTest/FCA_PRO_App.html"
 DST="/home/wes/fca-pro-site/index.html"
 cp "$SRC" "$DST"
 cd /home/wes/fca-pro-site
+# bump the service-worker cache name so installed PWAs pull the new app when next online
+perl -0pi -e "s/const CACHE = '[^']*';/const CACHE = 'fca-pro-$(date +%s)';/" sw.js
 git add -A
 git commit -m "update FCA PRO ($(date +%Y-%m-%d_%H:%M))" || { echo "nothing changed"; exit 0; }
 git push

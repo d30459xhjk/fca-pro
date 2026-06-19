@@ -952,78 +952,130 @@ function _fcaToken(){
 function _fcaHeaders(tok){return {"apikey":FCA_SB_KEY,"Authorization":"Bearer "+tok,"Content-Type":"application/json"};}
 
 var FCASync={
-  setStore:null, latest:null, shadow:{}, status:"idle", err:null,
+  setStore:null, latest:null, shadow:{}, shadowTs:{}, status:"idle", err:null,
   online:(typeof navigator!=='undefined')?navigator.onLine:true,
-  lastSync:null, lastPullIso:null, started:false, firstRun:false,
-  applying:false, _busy:false, pushTimer:null, pollTimer:null, pollCount:0, _badge:null,
+  lastSync:null, lastPullIso:null, started:false, firstRun:false, haveBaseline:false,
+  applying:false, _busy:false, pushTimer:null, pollTimer:null, presTimer:null, pollCount:0, shadowSaveTimer:null, _badge:null,
 
   setStatus:function(st,err){this.status=st;this.err=err||null;},
   attach:function(setStore,initialStore){this.setStore=setStore;if(!this.started){this.started=true;this.start(initialStore);}},
   detach:function(){},
+  _hidden:function(){return (typeof document!=='undefined')&&document.hidden;},
+
+  saveShadow:function(){
+    var self=this;
+    if(self.shadowSaveTimer)clearTimeout(self.shadowSaveTimer);
+    self.shadowSaveTimer=setTimeout(function(){try{idbSet('fca_sync_shadow',{shadow:self.shadow,shadowTs:self.shadowTs,lastPullIso:self.lastPullIso}).catch(function(){});}catch(e){}},1000);
+  },
 
   start:function(initialStore){
     var self=this;
-    FCA_SYNC_ENTITIES.forEach(function(e){if(!self.shadow[e])self.shadow[e]={};});
+    FCA_SYNC_ENTITIES.forEach(function(e){if(!self.shadow[e])self.shadow[e]={};if(!self.shadowTs[e])self.shadowTs[e]={};});
     self.firstRun=true; try{if(localStorage.getItem('fca_sync_init'))self.firstRun=false;}catch(e){}
-    var basePromise;
-    try{basePromise=idbGet('fca_store').then(function(d){return d||initialStore||_fcaEmptyStore();}).catch(function(){return initialStore||_fcaEmptyStore();});}
-    catch(e){basePromise=Promise.resolve(initialStore||_fcaEmptyStore());}
-    basePromise.then(function(base){
-      self.latest=base;
+    var baseP,shadP;
+    try{baseP=idbGet('fca_store').then(function(d){return d||initialStore||_fcaEmptyStore();}).catch(function(){return initialStore||_fcaEmptyStore();});}
+    catch(e){baseP=Promise.resolve(initialStore||_fcaEmptyStore());}
+    try{shadP=idbGet('fca_sync_shadow').then(function(d){return d||null;}).catch(function(){return null;});}
+    catch(e){shadP=Promise.resolve(null);}
+    Promise.all([baseP,shadP]).then(function(arr){
+      self.latest=arr[0];
+      var sh=arr[1];
+      if(sh&&sh.shadow){FCA_SYNC_ENTITIES.forEach(function(e){self.shadow[e]=sh.shadow[e]||{};self.shadowTs[e]=(sh.shadowTs&&sh.shadowTs[e])||{};});self.lastPullIso=sh.lastPullIso||null;self.haveBaseline=true;}
       try{
         window.addEventListener('online',function(){self.online=true;self.kick();});
         window.addEventListener('offline',function(){self.online=false;self.setStatus('offline');});
         window.addEventListener('focus',function(){self.kick();});
-        document.addEventListener('visibilitychange',function(){if(!document.hidden)self.kick();});
+        document.addEventListener('visibilitychange',function(){if(!self._hidden()){self.kick();self.presenceBeat();}});
       }catch(e){}
-      try{self.presenceBeat();self._presTimer=setInterval(function(){self.presenceBeat();},30000);}catch(e){}self.syncOnce(true).then(function(){self.startPoll();});
+      try{self.presenceBeat();self.presTimer=setInterval(function(){self.presenceBeat();},30000);}catch(e){}
+      self.syncOnce(true).then(function(){self.startPoll();});
     });
   },
 
   startPoll:function(){var self=this;if(self.pollTimer)return;self.pollTimer=setInterval(function(){self.kick();},15000);},
-  kick:function(){var self=this;if(!self.online){self.setStatus('offline');return;}self.syncOnce(false);},
+  kick:function(){var self=this;if(self._hidden())return;if(!self.online){self.setStatus('offline');return;}self.syncOnce(false);},
 
   syncOnce:function(full){
     var self=this;
     if(self._busy) return Promise.resolve();
     self._busy=true; self.setStatus('syncing');
-    var fr=self.firstRun;
+    var fr=self.firstRun; self.pollCount++;
     return _fcaToken().then(function(tok){
       if(!tok){self.setStatus('idle');return;}
-      return self.pull(tok, full||fr, fr).then(function(cloudCount){
-        if(fr){
-          self.firstRun=false; try{localStorage.setItem('fca_sync_init','1');}catch(e){}
-          if(cloudCount>0){return;} // followers adopt cloud, push nothing
-        }
+      var pullP;
+      if(fr){pullP=self.pullFull(tok,true);}
+      else if(full&&!self.haveBaseline){pullP=self.pullFull(tok,false);}
+      else if(full){pullP=self.pullReconcile(tok);}
+      else if(self.pollCount%4===0){pullP=self.pullReconcile(tok);}
+      else {pullP=self.pullIncremental(tok);}
+      return pullP.then(function(info){
+        if(fr){self.firstRun=false;self.haveBaseline=true;try{localStorage.setItem('fca_sync_init','1');}catch(e){}if(info&&info.cloudCount>0){self.saveShadow();return;}}
         return self.push(tok);
-      }).then(function(){
-        self.lastSync=Date.now(); self.setStatus(self.online?'synced':'offline');
-      });
+      }).then(function(){self.lastSync=Date.now();self.setStatus(self.online?'synced':'offline');self.saveShadow();});
     }).catch(function(e){self.setStatus('error',(e&&e.message)||String(e));}).then(function(){self._busy=false;});
   },
 
-  pull:function(tok, full, firstRun){
-    var self=this; self.pollCount++;
-    var doDeletes=full||firstRun||(self.pollCount%4===0);
-    var since=(full||firstRun||doDeletes||!self.lastPullIso)?null:self.lastPullIso;
+  pullFull:function(tok,firstRun){
+    var self=this;
     var jobs=FCA_SYNC_ENTITIES.map(function(e){
-      var url=FCA_SB_URL+"/rest/v1/"+e+"?select=id,data,updated_at";
-      if(since) url+="&updated_at=gt."+encodeURIComponent(since);
-      return fetch(url,{headers:_fcaHeaders(tok)}).then(function(r){if(!r.ok)throw new Error(e+" pull "+r.status);return r.json();}).then(function(rows){return {e:e,rows:rows};});
+      return fetch(FCA_SB_URL+"/rest/v1/"+e+"?select=id,data,updated_at",{headers:_fcaHeaders(tok)}).then(function(r){if(!r.ok)throw new Error(e+" pull "+r.status);return r.json();}).then(function(rows){return {e:e,rows:rows};});
     });
-    var delJobs=doDeletes?FCA_SYNC_ENTITIES.map(function(e){
-      return fetch(FCA_SB_URL+"/rest/v1/"+e+"?select=id",{headers:_fcaHeaders(tok)}).then(function(r){return r.ok?r.json():null;}).then(function(rows){return {e:e,ids:rows?rows.map(function(x){return x.id;}):null};});
-    }):[];
-    return Promise.all(jobs.concat(delJobs)).then(function(results){
-      var upserts={}, idsets={}, maxIso=self.lastPullIso, total=0;
-      results.forEach(function(res){
-        if(res.rows!==undefined){upserts[res.e]=res.rows;total+=res.rows.length;res.rows.forEach(function(row){if(!maxIso||row.updated_at>maxIso)maxIso=row.updated_at;});}
-        else if(res.ids!==undefined){idsets[res.e]=res.ids;}
+    return Promise.all(jobs).then(function(results){
+      var upserts={}, total=0;
+      results.forEach(function(res){upserts[res.e]=res.rows;total+=res.rows.length;});
+      if(firstRun&&total>0){self.adoptCloud(upserts);}
+      else if(!self.haveBaseline){self.adoptMerge(upserts);}
+      else {var idsets={};FCA_SYNC_ENTITIES.forEach(function(e){idsets[e]=(upserts[e]||[]).map(function(r){return r.id;});});self.applyRemote(upserts,idsets,false);}
+      var maxIso=self.lastPullIso;
+      FCA_SYNC_ENTITIES.forEach(function(e){(upserts[e]||[]).forEach(function(r){self.shadowTs[e][r.id]=r.updated_at;if(!maxIso||r.updated_at>maxIso)maxIso=r.updated_at;});});
+      if(maxIso)self.lastPullIso=maxIso;
+      self.haveBaseline=true;
+      return {cloudCount:total};
+    });
+  },
+
+  pullIncremental:function(tok){
+    var self=this;
+    if(!self.lastPullIso) return self.pullReconcile(tok);
+    var since=self.lastPullIso;
+    var jobs=FCA_SYNC_ENTITIES.map(function(e){
+      return fetch(FCA_SB_URL+"/rest/v1/"+e+"?select=id,data,updated_at&updated_at=gt."+encodeURIComponent(since),{headers:_fcaHeaders(tok)}).then(function(r){if(!r.ok)throw new Error(e+" pull "+r.status);return r.json();}).then(function(rows){return {e:e,rows:rows};});
+    });
+    return Promise.all(jobs).then(function(results){
+      var upserts={}, maxIso=self.lastPullIso;
+      results.forEach(function(res){upserts[res.e]=res.rows;res.rows.forEach(function(r){if(!maxIso||r.updated_at>maxIso)maxIso=r.updated_at;});});
+      self.applyRemote(upserts,null,false);
+      FCA_SYNC_ENTITIES.forEach(function(e){(upserts[e]||[]).forEach(function(r){self.shadowTs[e][r.id]=r.updated_at;});});
+      if(maxIso)self.lastPullIso=maxIso;
+      return {};
+    });
+  },
+
+  pullReconcile:function(tok){
+    var self=this;
+    var metaJobs=FCA_SYNC_ENTITIES.map(function(e){
+      return fetch(FCA_SB_URL+"/rest/v1/"+e+"?select=id,updated_at",{headers:_fcaHeaders(tok)}).then(function(r){if(!r.ok)throw new Error(e+" meta "+r.status);return r.json();}).then(function(rows){return {e:e,rows:rows};});
+    });
+    return Promise.all(metaJobs).then(function(metaRes){
+      var idsets={}, changedByE={}, toFetch=[];
+      metaRes.forEach(function(res){
+        var e=res.e, ids=[], changed=[];
+        res.rows.forEach(function(m){ids.push(m.id);if(self.shadowTs[e][m.id]!==m.updated_at)changed.push(m.id);});
+        idsets[e]=ids; changedByE[e]=changed; if(changed.length)toFetch.push(e);
       });
-      if(firstRun && total>0){ self.adoptCloud(upserts); }
-      else { self.applyRemote(upserts, doDeletes?idsets:null, firstRun); }
-      if(maxIso) self.lastPullIso=maxIso;
-      return total;
+      var dataJobs=toFetch.map(function(e){
+        var inl='in.('+changedByE[e].map(function(x){return '"'+String(x).replace(/"/g,'\\"')+'"';}).join(',')+')';
+        return fetch(FCA_SB_URL+"/rest/v1/"+e+"?select=id,data,updated_at&id="+encodeURIComponent(inl),{headers:_fcaHeaders(tok)}).then(function(r){if(!r.ok)throw new Error(e+" refetch "+r.status);return r.json();}).then(function(rows){return {e:e,rows:rows};});
+      });
+      return Promise.all(dataJobs).then(function(dres){
+        var upserts={}; FCA_SYNC_ENTITIES.forEach(function(e){upserts[e]=[];});
+        dres.forEach(function(d){upserts[d.e]=d.rows;});
+        self.applyRemote(upserts,idsets,false);
+        var maxIso=self.lastPullIso;
+        metaRes.forEach(function(res){var e=res.e,nt={};res.rows.forEach(function(m){nt[m.id]=m.updated_at;if(!maxIso||m.updated_at>maxIso)maxIso=m.updated_at;});self.shadowTs[e]=nt;});
+        if(maxIso)self.lastPullIso=maxIso;
+        return {};
+      });
     });
   },
 
@@ -1033,6 +1085,26 @@ var FCASync={
     FCA_SYNC_ENTITIES.forEach(function(e){
       var rows=upserts[e]||[]; self.shadow[e]={};
       store[e]=rows.map(function(r){self.shadow[e][r.id]=JSON.stringify(r.data);return r.data;});
+    });
+    var ids={}; (store.buildings||[]).forEach(function(b){ids[b.id]=1;});
+    if(store.currentBuildingId && !ids[store.currentBuildingId]) store.currentBuildingId=(store.buildings[0]&&store.buildings[0].id)||null;
+    self.latest=store;
+    try{self.applying=true; if(self.setStore)self.setStore(Object.assign({},store)); persistLocal(store);}finally{self.applying=false;}
+  },
+
+  adoptMerge:function(upserts){
+    var self=this;
+    var store=Object.assign({}, self.latest||_fcaEmptyStore());
+    FCA_SYNC_ENTITIES.forEach(function(e){
+      var arr=(store[e]||[]).slice();
+      var byId={}; arr.forEach(function(o,idx){if(o&&o.id!=null)byId[o.id]=idx;});
+      self.shadow[e]={};
+      (upserts[e]||[]).forEach(function(row){
+        var li=byId[row.id];
+        if(li!=null){arr[li]=row.data;}else{arr.push(row.data);byId[row.id]=arr.length-1;}
+        self.shadow[e][row.id]=JSON.stringify(row.data);
+      });
+      store[e]=arr;
     });
     var ids={}; (store.buildings||[]).forEach(function(b){ids[b.id]=1;});
     if(store.currentBuildingId && !ids[store.currentBuildingId]) store.currentBuildingId=(store.buildings[0]&&store.buildings[0].id)||null;
@@ -1064,7 +1136,7 @@ var FCASync={
           var id=arr[i].id;
           if(id!=null && !cloud[id]){
             var lj=JSON.stringify(arr[i]); var known=(shadow[id]!=null); var d=known&&(lj!==shadow[id]);
-            if(known && !d){arr.splice(i,1); delete shadow[id]; changed=true;}
+            if(known && !d){arr.splice(i,1); delete shadow[id]; delete self.shadowTs[e][id]; changed=true;}
           }
         }
       }
@@ -1091,7 +1163,7 @@ var FCASync={
     self._busy=true; self.setStatus('syncing');
     _fcaToken().then(function(tok){
       if(!tok){self.setStatus('idle');return;}
-      return self.push(tok).then(function(){self.lastSync=Date.now();self.setStatus(self.online?'synced':'offline');});
+      return self.push(tok).then(function(){self.lastSync=Date.now();self.setStatus(self.online?'synced':'offline');self.saveShadow();});
     }).catch(function(e){self.setStatus('error',(e&&e.message)||String(e));}).then(function(){self._busy=false;});
   },
 
@@ -1123,7 +1195,7 @@ var FCASync={
           op.ids.forEach(function(id){
             chain2=chain2.then(function(){
               return fetch(FCA_SB_URL+"/rest/v1/"+op.e+"?id=eq."+encodeURIComponent(id),{method:"DELETE",headers:_fcaHeaders(tok)})
-                .then(function(r){if(r.ok||r.status===404){delete self.shadow[op.e][id];}else{throw new Error(op.e+" del "+r.status);}});
+                .then(function(r){if(r.ok||r.status===404){delete self.shadow[op.e][id];delete self.shadowTs[op.e][id];}else{throw new Error(op.e+" del "+r.status);}});
             });
           });
           return chain2;
@@ -1133,7 +1205,7 @@ var FCASync={
     return chain;
   }
 };
-window.FCASync=FCASync;FCASync.presenceBeat=function(){var self=this;_fcaToken().then(function(tok){if(!tok)return;var s=null;try{s=_fcaLoadSession();}catch(e){}var email=s&&s.email;if(!email)return;fetch(FCA_SB_URL+"/rest/v1/presence",{method:"POST",headers:Object.assign({},_fcaHeaders(tok),{"Prefer":"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify([{email:email,last_seen:new Date().toISOString()}])}).catch(function(){});});};
+window.FCASync=FCASync;FCASync.presenceBeat=function(){var self=this;if(self._hidden())return;_fcaToken().then(function(tok){if(!tok)return;var s=null;try{s=_fcaLoadSession();}catch(e){}var email=s&&s.email;if(!email)return;fetch(FCA_SB_URL+"/rest/v1/presence",{method:"POST",headers:Object.assign({},_fcaHeaders(tok),{"Prefer":"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify([{email:email,last_seen:new Date().toISOString()}])}).catch(function(){});});};
 
 function SyncBadge(){
   try{

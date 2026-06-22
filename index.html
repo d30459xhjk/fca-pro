@@ -889,17 +889,17 @@ function _fcaLogin(username,password){
   var email=(username||"").trim().toLowerCase();
   if(!email) return Promise.reject(new Error("Enter your username"));
   if(email.indexOf("@")<0) email=email+"@fcapro.app";
-  return fetch(FCA_SB_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"apikey":FCA_SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({email:email,password:password})})
+  return _fcaFetch(FCA_SB_URL+"/auth/v1/token?grant_type=password",{method:"POST",headers:{"apikey":FCA_SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({email:email,password:password})})
     .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
     .then(function(res){
       var d=res.d;
       if(!res.ok||!d.access_token){var m=(d&&(d.error_description||d.msg||d.error))||"Wrong username or password";throw new Error(m);}
-      var s=_fcaMkSession(d,email);_fcaSaveSession(s);try{fetch(FCA_SB_URL+"/rest/v1/activity_log",{method:"POST",headers:Object.assign({},_fcaHeaders(s.access_token),{"Prefer":"return=minimal"}),body:JSON.stringify([{entity:"auth",action:"LOGIN",actor_email:s.email,actor:(d.user&&d.user.id)||null,label:s.email}])}).catch(function(){});}catch(e){}return s;
+      var s=_fcaMkSession(d,email);_fcaSaveSession(s);try{_fcaFetch(FCA_SB_URL+"/rest/v1/activity_log",{method:"POST",headers:Object.assign({},_fcaHeaders(s.access_token),{"Prefer":"return=minimal"}),body:JSON.stringify([{entity:"auth",action:"LOGIN",actor_email:s.email,actor:(d.user&&d.user.id)||null,label:s.email}])}).catch(function(){});}catch(e){}return s;
     });
 }
 function _fcaRefresh(sess){
   if(!sess||!sess.refresh_token) return Promise.resolve(null);
-  return fetch(FCA_SB_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:{"apikey":FCA_SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({refresh_token:sess.refresh_token})})
+  return _fcaFetch(FCA_SB_URL+"/auth/v1/token?grant_type=refresh_token",{method:"POST",headers:{"apikey":FCA_SB_KEY,"Content-Type":"application/json"},body:JSON.stringify({refresh_token:sess.refresh_token})})
     .then(function(r){return r.json().then(function(d){return {ok:r.ok,d:d};});})
     .then(function(res){
       var d=res.d;
@@ -962,9 +962,27 @@ function _fcaToken(){
   return _fcaRefresh(s).then(function(ns){return ns?ns.access_token:null;});
 }
 function _fcaHeaders(tok){return {"apikey":FCA_SB_KEY,"Authorization":"Bearer "+tok,"Content-Type":"application/json"};}
+/* timeout-wrapped fetch: a stalled request must reject, or _busy stays true and sync freezes */
+function _fcaFetch(url,opts,ms){
+  opts=opts||{};
+  if(typeof AbortController==='undefined') return fetch(url,opts);
+  var ac=new AbortController();
+  var to=setTimeout(function(){try{ac.abort();}catch(e){}},ms||25000);
+  return fetch(url,Object.assign({},opts,{signal:ac.signal})).then(
+    function(r){clearTimeout(to);return r;},
+    function(e){clearTimeout(to);throw e;}
+  );
+}
+/* lightweight change-detection signature. The shadow only ever compares values for equality, never
+   reads them back as data, so we store a short hash instead of a full JSON copy of every record.
+   This keeps base64 photos (~98% of payload) out of the persisted shadow and out of the megabyte
+   blob written to IndexedDB on every save. djb2 over the JSON, salted with length to make
+   collisions negligible. */
+function _fcaSigStr(s){var h=5381,i=s.length;while(i)h=((h*33)^s.charCodeAt(--i))>>>0;return s.length+':'+h.toString(36);}
+function _fcaSig(o){return _fcaSigStr(JSON.stringify(o));}
 
 var FCASync={
-  setStore:null, latest:null, shadow:{}, shadowTs:{}, status:"idle", err:null,
+  setStore:null, latest:null, shadow:{}, shadowTs:{}, localTs:{}, status:"idle", err:null,
   online:(typeof navigator!=='undefined')?navigator.onLine:true,
   lastSync:null, lastPullIso:null, started:false, firstRun:false, haveBaseline:false,
   applying:false, _busy:false, pushTimer:null, pollTimer:null, presTimer:null, pollCount:0, shadowSaveTimer:null, _badge:null,
@@ -977,12 +995,12 @@ var FCASync={
   saveShadow:function(){
     var self=this;
     if(self.shadowSaveTimer)clearTimeout(self.shadowSaveTimer);
-    self.shadowSaveTimer=setTimeout(function(){try{idbSet('fca_sync_shadow',{shadow:self.shadow,shadowTs:self.shadowTs,lastPullIso:self.lastPullIso}).catch(function(){});}catch(e){}},1000);
+    self.shadowSaveTimer=setTimeout(function(){try{idbSet('fca_sync_shadow',{shadow:self.shadow,shadowTs:self.shadowTs,localTs:self.localTs,lastPullIso:self.lastPullIso}).catch(function(){});}catch(e){}},1000);
   },
 
   start:function(initialStore){
     var self=this;
-    FCA_SYNC_ENTITIES.forEach(function(e){if(!self.shadow[e])self.shadow[e]={};if(!self.shadowTs[e])self.shadowTs[e]={};});
+    FCA_SYNC_ENTITIES.forEach(function(e){if(!self.shadow[e])self.shadow[e]={};if(!self.shadowTs[e])self.shadowTs[e]={};if(!self.localTs[e])self.localTs[e]={};});
     self.firstRun=true; try{if(localStorage.getItem('fca_sync_init'))self.firstRun=false;}catch(e){}
     var baseP,shadP;
     try{baseP=idbGet('fca_store').then(function(d){return d||initialStore||_fcaEmptyStore();}).catch(function(){return initialStore||_fcaEmptyStore();});}
@@ -992,7 +1010,10 @@ var FCASync={
     Promise.all([baseP,shadP]).then(function(arr){
       self.latest=arr[0];
       var sh=arr[1];
-      if(sh&&sh.shadow){FCA_SYNC_ENTITIES.forEach(function(e){self.shadow[e]=sh.shadow[e]||{};self.shadowTs[e]=(sh.shadowTs&&sh.shadowTs[e])||{};});self.lastPullIso=sh.lastPullIso||null;self.haveBaseline=true;}
+      if(sh&&sh.shadow){FCA_SYNC_ENTITIES.forEach(function(e){self.shadow[e]=sh.shadow[e]||{};self.shadowTs[e]=(sh.shadowTs&&sh.shadowTs[e])||{};self.localTs[e]=(sh.localTs&&sh.localTs[e])||{};
+        /* migrate legacy shadows that stored full JSON to the compact signature */
+        var sm=self.shadow[e];for(var _id in sm){var _v=sm[_id];if(typeof _v==='string'&&(_v.charAt(0)==='{'||_v.charAt(0)==='['))sm[_id]=_fcaSigStr(_v);}
+      });self.lastPullIso=sh.lastPullIso||null;self.haveBaseline=true;}
       try{
         window.addEventListener('online',function(){self.online=true;self.kick();});
         window.addEventListener('offline',function(){self.online=false;self.setStatus('offline');});
@@ -1030,7 +1051,7 @@ var FCASync={
   pullFull:function(tok,firstRun){
     var self=this;
     var jobs=FCA_SYNC_ENTITIES.map(function(e){
-      return fetch(FCA_SB_URL+"/rest/v1/"+e+"?select=id,data,updated_at",{headers:_fcaHeaders(tok)}).then(function(r){if(!r.ok)throw new Error(e+" pull "+r.status);return r.json();}).then(function(rows){return {e:e,rows:rows};});
+      return _fcaFetch(FCA_SB_URL+"/rest/v1/"+e+"?select=id,data,updated_at",{headers:_fcaHeaders(tok)}).then(function(r){if(!r.ok)throw new Error(e+" pull "+r.status);return r.json();}).then(function(rows){return {e:e,rows:rows};});
     });
     return Promise.all(jobs).then(function(results){
       var upserts={}, total=0;
@@ -1051,7 +1072,7 @@ var FCASync={
     if(!self.lastPullIso) return self.pullReconcile(tok);
     var since=self.lastPullIso;
     var jobs=FCA_SYNC_ENTITIES.map(function(e){
-      return fetch(FCA_SB_URL+"/rest/v1/"+e+"?select=id,data,updated_at&updated_at=gt."+encodeURIComponent(since),{headers:_fcaHeaders(tok)}).then(function(r){if(!r.ok)throw new Error(e+" pull "+r.status);return r.json();}).then(function(rows){return {e:e,rows:rows};});
+      return _fcaFetch(FCA_SB_URL+"/rest/v1/"+e+"?select=id,data,updated_at&updated_at=gt."+encodeURIComponent(since),{headers:_fcaHeaders(tok)}).then(function(r){if(!r.ok)throw new Error(e+" pull "+r.status);return r.json();}).then(function(rows){return {e:e,rows:rows};});
     });
     return Promise.all(jobs).then(function(results){
       var upserts={}, maxIso=self.lastPullIso;
@@ -1066,7 +1087,7 @@ var FCASync={
   pullReconcile:function(tok){
     var self=this;
     var metaJobs=FCA_SYNC_ENTITIES.map(function(e){
-      return fetch(FCA_SB_URL+"/rest/v1/"+e+"?select=id,updated_at",{headers:_fcaHeaders(tok)}).then(function(r){if(!r.ok)throw new Error(e+" meta "+r.status);return r.json();}).then(function(rows){return {e:e,rows:rows};});
+      return _fcaFetch(FCA_SB_URL+"/rest/v1/"+e+"?select=id,updated_at",{headers:_fcaHeaders(tok)}).then(function(r){if(!r.ok)throw new Error(e+" meta "+r.status);return r.json();}).then(function(rows){return {e:e,rows:rows};});
     });
     return Promise.all(metaJobs).then(function(metaRes){
       var idsets={}, changedByE={}, toFetch=[];
@@ -1077,7 +1098,7 @@ var FCASync={
       });
       var dataJobs=toFetch.map(function(e){
         var inl='in.('+changedByE[e].map(function(x){return '"'+String(x).replace(/"/g,'\\"')+'"';}).join(',')+')';
-        return fetch(FCA_SB_URL+"/rest/v1/"+e+"?select=id,data,updated_at&id="+encodeURIComponent(inl),{headers:_fcaHeaders(tok)}).then(function(r){if(!r.ok)throw new Error(e+" refetch "+r.status);return r.json();}).then(function(rows){return {e:e,rows:rows};});
+        return _fcaFetch(FCA_SB_URL+"/rest/v1/"+e+"?select=id,data,updated_at&id="+encodeURIComponent(inl),{headers:_fcaHeaders(tok)}).then(function(r){if(!r.ok)throw new Error(e+" refetch "+r.status);return r.json();}).then(function(rows){return {e:e,rows:rows};});
       });
       return Promise.all(dataJobs).then(function(dres){
         var upserts={}; FCA_SYNC_ENTITIES.forEach(function(e){upserts[e]=[];});
@@ -1096,7 +1117,7 @@ var FCASync={
     var store=Object.assign({}, self.latest||_fcaEmptyStore());
     FCA_SYNC_ENTITIES.forEach(function(e){
       var rows=upserts[e]||[]; self.shadow[e]={};
-      store[e]=rows.map(function(r){self.shadow[e][r.id]=JSON.stringify(r.data);return r.data;});
+      store[e]=rows.map(function(r){self.shadow[e][r.id]=_fcaSig(r.data);return r.data;});
     });
     var ids={}; (store.buildings||[]).forEach(function(b){ids[b.id]=1;});
     if(store.currentBuildingId && !ids[store.currentBuildingId]) store.currentBuildingId=(store.buildings[0]&&store.buildings[0].id)||null;
@@ -1114,7 +1135,7 @@ var FCASync={
       (upserts[e]||[]).forEach(function(row){
         var li=byId[row.id];
         if(li!=null){arr[li]=row.data;}else{arr.push(row.data);byId[row.id]=arr.length-1;}
-        self.shadow[e][row.id]=JSON.stringify(row.data);
+        self.shadow[e][row.id]=_fcaSig(row.data);
       });
       store[e]=arr;
     });
@@ -1135,19 +1156,29 @@ var FCASync={
       (upserts[e]||[]).forEach(function(row){
         var li=byId[row.id];
         var localJson=(li!=null)?JSON.stringify(arr[li]):null;
-        var dirty=!firstRun && (localJson!=null) && (localJson!==shadow[row.id]);
+        var dirty=!firstRun && (localJson!=null) && (_fcaSigStr(localJson)!==shadow[row.id]);
         var remoteJson=JSON.stringify(row.data);
-        if(dirty){ return; }
+        if(dirty){
+          /* genuine conflict: both the local copy and the cloud changed since our baseline.
+             Arbitrate by recency. The remote wins only if its server updated_at is provably newer
+             than our recorded local edit time; otherwise keep local (default preserves prior
+             behavior when no local edit time is known). client/server clock skew is bounded and
+             far smaller than typical edit gaps. */
+          var lt=(self.localTs[e]||{})[row.id];
+          var rt=row.updated_at?Date.parse(row.updated_at):NaN;
+          if(!(lt!=null && rt && rt>lt)) return;   /* keep local */
+          if(self.localTs[e]) delete self.localTs[e][row.id];  /* remote wins: local edit superseded */
+        }
         if(li!=null){ if(localJson!==remoteJson){arr[li]=row.data;changed=true;} }
         else { arr.push(row.data); byId[row.id]=arr.length-1; changed=true; }
-        shadow[row.id]=remoteJson;
+        shadow[row.id]=_fcaSigStr(remoteJson);
       });
       if(idsets && idsets[e]){
         var cloud={}; idsets[e].forEach(function(id){cloud[id]=1;});
         for(var i=arr.length-1;i>=0;i--){
           var id=arr[i].id;
           if(id!=null && !cloud[id]){
-            var lj=JSON.stringify(arr[i]); var known=(shadow[id]!=null); var d=known&&(lj!==shadow[id]);
+            var lj=JSON.stringify(arr[i]); var known=(shadow[id]!=null); var d=known&&(_fcaSigStr(lj)!==shadow[id]);
             if(known && !d){arr.splice(i,1); delete shadow[id]; delete self.shadowTs[e][id]; changed=true;}
           }
         }
@@ -1163,6 +1194,16 @@ var FCASync={
   onLocalSave:function(data){
     var self=this;
     if(self.applying) return;
+    /* stamp the client-side edit time of each changed record so applyRemote can arbitrate
+       genuine conflicts by recency instead of always preferring the local copy */
+    try{
+      var prev=self.latest||{}, now=Date.now();
+      FCA_SYNC_ENTITIES.forEach(function(e){
+        var lt=self.localTs[e]||(self.localTs[e]={});
+        var pj={}; (prev[e]||[]).forEach(function(o){if(o&&o.id!=null)pj[o.id]=JSON.stringify(o);});
+        (data[e]||[]).forEach(function(o){if(o&&o.id!=null){var j=JSON.stringify(o); if(pj[o.id]!==j) lt[o.id]=now;}});
+      });
+    }catch(e){}
     self.latest=data;
     if(self.pushTimer) clearTimeout(self.pushTimer);
     self.pushTimer=setTimeout(function(){self.kickPush();},700);
@@ -1182,13 +1223,25 @@ var FCASync={
   push:function(tok){
     var self=this;
     var data=self.latest||_fcaEmptyStore();
+    /* SAFETY: a degenerate local store (every synced entity empty) while the shadow still holds
+       records means fca_store was lost but fca_sync_shadow survived. Pushing here would delete the
+       entire cloud. Suppress, reset the shadow/cursor, and let the next cycle full-pull and re-merge. */
+    var _localTotal=0,_shadowTotal=0;
+    FCA_SYNC_ENTITIES.forEach(function(e){_localTotal+=(data[e]||[]).length;_shadowTotal+=Object.keys(self.shadow[e]||{}).length;});
+    if(_localTotal===0 && _shadowTotal>0){
+      try{console.warn('FCASync: empty local store with '+_shadowTotal+' shadow records — suppressing deletes, forcing re-pull');}catch(e){}
+      self.shadow={};self.shadowTs={};self.localTs={};self.lastPullIso=null;self.haveBaseline=false;
+      FCA_SYNC_ENTITIES.forEach(function(e){self.shadow[e]={};self.shadowTs[e]={};self.localTs[e]={};});
+      self.saveShadow();
+      return Promise.resolve();
+    }
     var ops=[];
     FCA_SYNC_ENTITIES.forEach(function(e){
       var arr=data[e]||[];
       var cur={}; arr.forEach(function(o){if(o&&o.id!=null)cur[o.id]=o;});
       var shadow=self.shadow[e]||(self.shadow[e]={});
       var upserts=[];
-      for(var id in cur){var js=JSON.stringify(cur[id]); if(shadow[id]!==js) upserts.push({id:String(id),data:cur[id],js:js});}
+      for(var id in cur){var js=JSON.stringify(cur[id]),sig=_fcaSigStr(js); if(shadow[id]!==sig) upserts.push({id:String(id),data:cur[id],sig:sig});}
       var deletes=[];
       for(var sid in shadow){if(!(sid in cur)) deletes.push(sid);}
       if(upserts.length) ops.push({e:e,type:'up',items:upserts});
@@ -1200,13 +1253,13 @@ var FCASync={
       chain=chain.then(function(){
         if(op.type==='up'){
           var body=op.items.map(function(x){return {id:x.id,data:x.data};});
-          return fetch(FCA_SB_URL+"/rest/v1/"+op.e,{method:"POST",headers:Object.assign({},_fcaHeaders(tok),{"Prefer":"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify(body)})
-            .then(function(r){if(!r.ok)throw new Error(op.e+" push "+r.status); op.items.forEach(function(x){self.shadow[op.e][x.id]=x.js;});});
+          return _fcaFetch(FCA_SB_URL+"/rest/v1/"+op.e,{method:"POST",headers:Object.assign({},_fcaHeaders(tok),{"Prefer":"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify(body)})
+            .then(function(r){if(!r.ok)throw new Error(op.e+" push "+r.status); op.items.forEach(function(x){self.shadow[op.e][x.id]=x.sig;if(self.localTs[op.e])delete self.localTs[op.e][x.id];});});
         } else {
           var chain2=Promise.resolve();
           op.ids.forEach(function(id){
             chain2=chain2.then(function(){
-              return fetch(FCA_SB_URL+"/rest/v1/"+op.e+"?id=eq."+encodeURIComponent(id),{method:"DELETE",headers:_fcaHeaders(tok)})
+              return _fcaFetch(FCA_SB_URL+"/rest/v1/"+op.e+"?id=eq."+encodeURIComponent(id),{method:"DELETE",headers:_fcaHeaders(tok)})
                 .then(function(r){if(r.ok||r.status===404){delete self.shadow[op.e][id];delete self.shadowTs[op.e][id];}else{throw new Error(op.e+" del "+r.status);}});
             });
           });
@@ -1217,7 +1270,7 @@ var FCASync={
     return chain;
   }
 };
-window.FCASync=FCASync;FCASync.presenceBeat=function(){var self=this;if(self._hidden())return;_fcaToken().then(function(tok){if(!tok)return;var s=null;try{s=_fcaLoadSession();}catch(e){}var email=s&&s.email;if(!email)return;fetch(FCA_SB_URL+"/rest/v1/presence",{method:"POST",headers:Object.assign({},_fcaHeaders(tok),{"Prefer":"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify([{email:email,last_seen:new Date().toISOString()}])}).catch(function(){});});};
+window.FCASync=FCASync;FCASync.presenceBeat=function(){var self=this;if(self._hidden())return;_fcaToken().then(function(tok){if(!tok)return;var s=null;try{s=_fcaLoadSession();}catch(e){}var email=s&&s.email;if(!email)return;_fcaFetch(FCA_SB_URL+"/rest/v1/presence",{method:"POST",headers:Object.assign({},_fcaHeaders(tok),{"Prefer":"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify([{email:email,last_seen:new Date().toISOString()}])}).catch(function(){});});};
 
 function SyncBadge(){
   try{
@@ -1242,7 +1295,7 @@ function DevLogButton(){
     setSt('loading');
     _fcaToken().then(function(tok){
       if(!tok){setSt('error');return;}
-      return fetch(FCA_SB_URL+"/rest/v1/activity_log?select=at,actor_email,action,entity,label,row_id&order=at.desc&limit=300",{headers:_fcaHeaders(tok)})
+      return _fcaFetch(FCA_SB_URL+"/rest/v1/activity_log?select=at,actor_email,action,entity,label,row_id&order=at.desc&limit=300",{headers:_fcaHeaders(tok)})
         .then(function(r){if(!r.ok)throw new Error(r.status);return r.json();})
         .then(function(d){setRows(Array.isArray(d)?d:[]);setSt('idle');});
     }).catch(function(){setSt('error');});
@@ -1293,8 +1346,8 @@ function ActivityView(){
       if(!tok){setSt('error');return;}
       var H=_fcaHeaders(tok);
       return Promise.all([
-        fetch(FCA_SB_URL+"/rest/v1/activity_log?select=at,actor_email,action,entity,label,row_id&order=at.desc&limit=300",{headers:H}).then(function(x){return x.ok?x.json():[];}),
-        fetch(FCA_SB_URL+"/rest/v1/presence?select=email,last_seen&order=last_seen.desc",{headers:H}).then(function(x){return x.ok?x.json():[];})
+        _fcaFetch(FCA_SB_URL+"/rest/v1/activity_log?select=at,actor_email,action,entity,label,row_id&order=at.desc&limit=300",{headers:H}).then(function(x){return x.ok?x.json():[];}),
+        _fcaFetch(FCA_SB_URL+"/rest/v1/presence?select=email,last_seen&order=last_seen.desc",{headers:H}).then(function(x){return x.ok?x.json():[];})
       ]).then(function(res){setRows(Array.isArray(res[0])?res[0]:[]);setPres(Array.isArray(res[1])?res[1]:[]);setSt('idle');});
     }).catch(function(){setSt('error');});
   }

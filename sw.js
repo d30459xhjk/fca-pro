@@ -1,7 +1,7 @@
 /* FCA PRO offline service worker.
    Caches the self-contained app so it launches with zero connectivity.
    Bump CACHE on each deploy so clients pick up the new app. */
-const CACHE = 'fca-pro-1782492259';
+const CACHE = 'fca-pro-1782492769';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {

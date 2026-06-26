@@ -894,7 +894,7 @@ var BPI_BQI_CRIT=[
   ['bpi_depend','Dependability',[['High',15],['Medium',10],['Low',5]]],
   ['bpi_effic','Efficiency',[['High',15],['Medium',10],['Low',5]]]
 ];
-function _bpiPts(opts,field,b){var v=b&&b[field];if(v==null||v==='')return null;for(var i=0;i<opts.length;i++)if(opts[i][0]===v)return opts[i][1];return null;}
+function _bpiPts(opts,field,b){var v=b&&b[field];if(v==null||v==='')return null;if(/^-?\d*\.?\d+$/.test(String(v).trim())){var n=parseFloat(v);return isNaN(n)?null:n;}for(var i=0;i<opts.length;i++)if(opts[i][0]===v)return opts[i][1];return null;}
 function _bpiSum(crit,b){var s=0,any=false;crit.forEach(function(c){var p=_bpiPts(c[2],c[0],b);if(p!=null){s+=p;any=true;}});return any?s:null;}
 function bpiMDI(b){return _bpiSum(BPI_MDI_CRIT,b);}
 function bpiBQI(b){return _bpiSum(BPI_BQI_CRIT,b);}
@@ -920,11 +920,13 @@ function BuildingPriorityPanel(props){
   var mdiC=bpiMDICat(mdi), bqiC=bpiBQICat(bqi), quad=bpiQuad(mdi,bqi);
   function setField(k,v){if(onUpdate)onUpdate(_bpiAssign(building,k,v));}
   function selFor(c){
-    var field=c[0],label=c[1],opts=c[2],cur=building[field]||'';
-    return h("div",{key:field,style:{display:'flex',flexDirection:'column',gap:3,marginBottom:7}},
+    var field=c[0],label=c[1],opts=c[2],raw=building[field],cur=(raw==null?'':raw);
+    var maxp=Math.max.apply(null,opts.map(function(o){return o[1];}));
+    var anchors=opts.map(function(o){return o[0]+' '+o[1];}).join('  ·  ');
+    return h("div",{key:field,style:{display:'flex',flexDirection:'column',gap:3,marginBottom:9}},
       h("label",{style:{fontSize:10,color:'var(--tx2)'}},label),
-      h("select",{value:cur,onChange:function(e){setField(field,e.target.value);},style:{fontSize:11,padding:'5px 6px',background:'var(--bg3)',color:'var(--tx1)',border:'1px solid var(--br)',borderRadius:5,fontFamily:'inherit'}},
-        [h("option",{key:'_u',value:''},'— Unrated —')].concat(opts.map(function(o){return h("option",{key:o[0],value:o[0]},o[0]+'  ·  '+o[1]+' pts');}))));
+      h("input",{type:"number",value:cur,placeholder:'0–'+maxp,min:0,onChange:function(e){setField(field,e.target.value);},style:{fontSize:11,padding:'5px 6px',background:'var(--bg3)',color:'var(--tx1)',border:'1px solid var(--br)',borderRadius:5,fontFamily:'var(--mono)',width:'100%',boxSizing:'border-box'}}),
+      h("div",{style:{fontSize:8.5,color:'var(--tx3)',fontFamily:'var(--mono)',lineHeight:1.35,marginTop:1}},anchors));
   }
   function chip(label,val,cat){
     return h("div",{style:{flex:1,minWidth:120}},

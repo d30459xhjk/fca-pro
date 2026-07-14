@@ -431,7 +431,8 @@ html.theme-console{
 }
 html.theme-console{background:#0A0C0B}
 html.theme-console .shell{border-top:2px solid var(--ac)}
-html.theme-console body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9000;background:repeating-linear-gradient(0deg,rgba(0,0,0,.09) 0,rgba(0,0,0,.09) 1px,transparent 1px,transparent 3px)}
+html.theme-console body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:500;background:repeating-linear-gradient(0deg,rgba(0,0,0,.09) 0,rgba(0,0,0,.09) 1px,transparent 1px,transparent 3px)}
+@media print{html.theme-console body::after{display:none}}
 html.theme-console .topbar{background:#0E1210;border-color:#232B26}
 html.theme-console .sidebar{background:#0C0F0D;border-color:#232B26}
 html.theme-console .logo{color:#DCE5DE;letter-spacing:.5px}
@@ -567,6 +568,13 @@ tr:hover .row-actions{opacity:1}
 .sub-tab.elec.active{color:var(--pu);border-bottom-color:var(--pu)}
 .sub-tab.spec.active{color:var(--am);border-bottom-color:var(--am)}
 </style>
+<script>
+/* Apply the saved theme before first paint so accent colors don't flash/transition on load. */
+try{
+  var _tc={dark:'theme-console',light:'theme-light',hc:'theme-hc',hcl:'theme-hcl'};
+  document.documentElement.className=_tc[localStorage.getItem('fca_theme')]||'theme-console';
+}catch(e){document.documentElement.className='theme-console';}
+</script>
 </head>
 <body>
 <div id="root"></div>

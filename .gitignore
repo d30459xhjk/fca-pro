@@ -1,3 +1,4 @@
 index.html.pre-phase2.bak
 *.bak
 index.html.bak-*
+*.local.sql

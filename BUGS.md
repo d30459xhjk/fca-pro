@@ -30,6 +30,11 @@ None.
 | 13 | 2026-07-26 | Editing an item dropped fields that were not on screen | Item update replaced the record instead of merging | 4144aa6 |
 | 14 | 2026-07-26 | Picking from the catalog wiped a half-filled item | Catalog pick reset the whole draft | 4144aa6 |
 | 15 | 2026-07-26 | Linked item lost the original item's deficiencies | Linked-item creation did not re-assert them | 4144aa6 |
+| 16 | 2026-07-30 | Topbar read "Backup" but "RESTORE", and the Restore/Sync boxes sat 4px shorter than the buttons beside them | Restore is a `<label>` (it wraps the hidden file input) and Sync is a `<span>`, so both picked up the global `label{text-transform:uppercase}` and missed the `button{min-height}` rule | uncommitted |
+| 17 | 2026-07-30 | Primary buttons were unreadable in both light themes — black text on a black fill | `.btn-p` / `.tb-btn-primary` hardcoded `color:#000` over `background:var(--ac)`; `--ac` is near-black in Light and pure black in Light High Contrast. Now `var(--onac)`, set per theme | uncommitted |
+| 18 | 2026-07-30 | Switching theme changed the typography, not just the colours | Font family, size, casing, tracking and nav radius lived under `html.theme-console` only, so Light/HC rendered a different UI. Promoted to base rules; theme blocks carry colour | uncommitted |
+| 19 | 2026-07-30 | The same filter chip rendered three different ways across Projects, Assessment and Portfolio | Projects and Capital Plan hand-styled copies of `.sort-chip` inline (own radius, size, `#000` text) instead of using the class | uncommitted |
+| 20 | 2026-07-30 | Selects rendered as native menulist boxes — wrong colour and taller than the controls beside them | No `appearance:none`; the 16px iOS anti-zoom size also applied on desktop. Selects now use the app's own caret, and 16px is scoped to `pointer:coarse` | uncommitted |
 
 ## Investigated, not a bug
 

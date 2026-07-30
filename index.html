@@ -939,51 +939,29 @@ function _isCatData(d){if(!d||typeof d!=='object'||Array.isArray(d))return false
 function _catClone(d){return JSON.parse(JSON.stringify(d||{}));}
 function _dlJSON(obj,fname){const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fname;document.body.appendChild(a);a.click();setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},100);}
 /* ============================ ARCHITECTURAL DATA CALCULATOR ============================
-   Standalone in-house takeoff calculator. Not tied to a building or to store data:
-   everything lives in localStorage key fca_calc_v1 so it can be opened in its own
-   window (index.html#calc) and used as a scratch tool. */
+   In-house architectural takeoff. Nothing is assumed: every figure comes from a number
+   typed in here, and nothing is tied to a building record. State lives in localStorage
+   key fca_calc_v1 so the tab can be opened in its own window (index.html#calc). */
 var CALC_KEY='fca_calc_v1';
 function _cn(v,d){var x=parseFloat(v);return isFinite(x)?x:(d===undefined?0:d);}
 function _ext(a,b){var o={},k;for(k in a)if(Object.prototype.hasOwnProperty.call(a,k))o[k]=a[k];for(k in b)if(Object.prototype.hasOwnProperty.call(b,k))o[k]=b[k];return o;}
-function _fmtN(x,d){if(x===null||x===undefined||!isFinite(x))return '—';d=d===undefined?0:d;return Number(x).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});}
+function _fmtN(x,d){if(x===null||x===undefined||!isFinite(x))return '—';d=d===undefined?0:d;if(!x)return d?Number(0).toFixed(d):'0';return Number(x).toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});}
 function _rid(){return 'r'+Math.random().toString(36).slice(2,8);}
-function _rows(list){var out=[],i;for(i=0;i<list.length;i++)out.push({id:_rid(),name:list[i][0],pct:list[i][1]});return out;}
+function _rows(names){var out=[],i;for(i=0;i<names.length;i++)out.push({id:_rid(),name:names[i],pct:0});return out;}
 
-var CALC_PROGRAM_PRESETS={
- 'Office':[['Open office',40],['Private offices',12],['Conference / huddle',8],['Lobby / reception',6],['Break / support',5],['Restrooms',4],['Mech / Elec / IT',6],['Storage',4],['Circulation',15]],
- 'School / Classroom':[['Classrooms',45],['Labs / shops',8],['Administration',8],['Library / media',6],['Restrooms',5],['Mech / Elec',6],['Storage',4],['Circulation',18]],
- 'Laboratory':[['Lab',45],['Lab support',12],['Office / write-up',12],['Restrooms',3],['Mech / Elec',10],['Storage',3],['Circulation',15]],
- 'Clinic / Healthcare':[['Exam rooms',30],['Treatment / procedure',10],['Waiting / reception',10],['Staff / office',12],['Restrooms',5],['Mech / Elec',8],['Storage',5],['Circulation',20]],
- 'Residence Hall':[['Student rooms',55],['Bathrooms',8],['Lounge / common',10],['Laundry / support',4],['Mech / Elec',5],['Storage',2],['Circulation',16]],
- 'Warehouse / Shop':[['Warehouse floor',82],['Office',8],['Restrooms',2],['Mech / Elec',3],['Circulation',5]]
-};
-var CALC_TYPE_DEFAULTS={
- 'Office':{eff:82,wwr:40,partLF:11,occSF:150,sfTon:350,cfmSF:1,wSF:6,lightSF:80,parkRatio:3.3,doorEvery:300},
- 'School / Classroom':{eff:75,wwr:30,partLF:9,occSF:20,sfTon:300,cfmSF:1.2,wSF:5,lightSF:70,parkRatio:2.5,doorEvery:400},
- 'Laboratory':{eff:70,wwr:35,partLF:14,occSF:100,sfTon:200,cfmSF:2,wSF:15,lightSF:60,parkRatio:2,doorEvery:250},
- 'Clinic / Healthcare':{eff:68,wwr:32,partLF:18,occSF:100,sfTon:250,cfmSF:1.5,wSF:9,lightSF:65,parkRatio:4.5,doorEvery:180},
- 'Residence Hall':{eff:72,wwr:28,partLF:16,occSF:200,sfTon:400,cfmSF:0.6,wSF:4,lightSF:100,parkRatio:0.6,doorEvery:220},
- 'Warehouse / Shop':{eff:92,wwr:8,partLF:3,occSF:500,sfTon:800,cfmSF:0.4,wSF:3,lightSF:250,parkRatio:0.8,doorEvery:2000}
-};
-var CALC_FLOOR_PRESET=[['Carpet tile',60],['Resilient / LVT',15],['Ceramic / porcelain tile',6],['Sealed concrete',9],['Rubber / safety flooring',8],['Walk-off / entry',2]];
-var CALC_CEIL_PRESET=[['Acoustical ceiling tile (ACT)',70],['Gypsum board ceiling',12],['Exposed structure',15],['Specialty / wood / metal',3]];
-var CALC_EXT_PRESET=[['Brick veneer',35],['Metal panel',25],['Precast concrete',15],['EIFS / stucco',15],['Louver / misc',10]];
-
-/* starter unit rates — order-of-magnitude only, meant to be edited */
-var CALC_RATES={roof:14,wall_opq:38,glazing:78,slab:9,floor_str:24,found:145,part_lf:95,gwb:0,paint_int:1.35,base_lf:4.5,doors:1450,
- hvac_ton:4500,elec_kw:850,lights:340,wc:3200,lav:2400,df:2600,sprink:210,park:5200,ff:6,cl:5,ex:38};
+/* starting line names only — every percentage starts at zero */
+var CALC_PROGRAM_LINES=['Program area','Circulation','Service / mechanical','Restrooms','Storage'];
+var CALC_FLOOR_LINES=['Carpet','Resilient / LVT','Ceramic / porcelain tile','Sealed concrete','Walk-off / entry'];
+var CALC_CEIL_LINES=['Acoustical ceiling tile','Gypsum board ceiling','Exposed structure'];
+var CALC_EXT_LINES=['Masonry / brick','Metal panel','Precast concrete','Stucco / EIFS'];
 
 function calcDefault(){
- return {name:'Untitled study',btype:'Office',
-  gsf:'50000',floors:'3',bg:'0',f2f:'13',ratio:'1.6',foot:'',perim:'',wwr:'40',eff:'82',waste:'8',
-  base:'gsf',finBase:'net',
-  program:_rows(CALC_PROGRAM_PRESETS['Office']),
-  floorFin:_rows(CALC_FLOOR_PRESET),ceil:_rows(CALC_CEIL_PRESET),extFin:_rows(CALC_EXT_PRESET),
-  partLF:'11',partH:'10',doorEvery:'300',paintCoats:'2',paintRate:'350',
-  occSF:'150',wcRatio:'50',lavRatio:'80',dfRatio:'100',egressIn:'0.2',
-  sfTon:'350',cfmSF:'1',wSF:'6',volts:'480',phase:'3',lightSF:'80',
-  headCov:'130',drainSF:'5000',elevSF:'45000',parkRatio:'3.3',parkStall:'350',
-  rates:{},gc:'8',ohp:'12',cont:'15',esc:'4',escYr:'2',soft:'22',
+ return {name:'',
+  gsf:'',floors:'1',bg:'0',f2f:'',ratio:'1.6',foot:'',perim:'',wwr:'',eff:'',waste:'8',
+  base:'gsf',finBase:'gsf',
+  program:_rows(CALC_PROGRAM_LINES),floorFin:_rows(CALC_FLOOR_LINES),
+  ceil:_rows(CALC_CEIL_LINES),extFin:_rows(CALC_EXT_LINES),
+  partLF:'',partH:'',doorEvery:'',paintCoats:'2',paintRate:'350',
   cvVal:'100',cvFrom:'sf',cvTo:'sy',pcA:'25',pcB:'1000'};
 }
 function calcLoad(){
@@ -994,52 +972,56 @@ function calcLoad(){
   if(!o.floorFin||!o.floorFin.length)o.floorFin=d.floorFin;
   if(!o.ceil||!o.ceil.length)o.ceil=d.ceil;
   if(!o.extFin||!o.extFin.length)o.extFin=d.extFin;
-  if(!o.rates)o.rates={};
   return o;}catch(e){return calcDefault();}
 }
 function calcSave(st){try{lsSet(CALC_KEY,JSON.stringify(st));}catch(e){}}
 function _sumPct(rows){var t=0,i;for(i=0;i<rows.length;i++)t+=_cn(rows[i].pct);return t;}
 
-/* the whole model: every derived quantity in one place */
+/* every derived quantity in one place */
 function calcModel(st){
  var m={};
- var gsf=_cn(st.gsf),fl=Math.max(1,_cn(st.floors,1)),bg=_cn(st.bg),f2f=_cn(st.f2f,13);
+ var gsf=_cn(st.gsf),fl=Math.max(1,_cn(st.floors,1)),bg=_cn(st.bg),f2f=_cn(st.f2f);
  var foot=_cn(st.foot)>0?_cn(st.foot):(fl>0?gsf/fl:0);
- var ratio=Math.max(1,_cn(st.ratio,1.5));
+ var ratio=Math.max(1,_cn(st.ratio,1.6));
  var w=foot>0?Math.sqrt(foot/ratio):0,l=ratio*w;
  var perimCalc=2*(l+w);
  var perim=_cn(st.perim)>0?_cn(st.perim):perimCalc;
- var wallH=(fl+bg)*f2f;
  m.gsf=gsf;m.floors=fl;m.bg=bg;m.f2f=f2f;m.foot=foot;m.width=w;m.length=l;
  m.perim=perim;m.perimAuto=perimCalc;m.perimOverride=_cn(st.perim)>0;
- m.height=fl*f2f;m.wallH=wallH;
- m.wallGross=perim*wallH;
- m.wwr=_cn(st.wwr,40)/100;
+ m.height=fl*f2f;m.wallH=(fl+bg)*f2f;
+ m.wallGross=perim*m.wallH;
+ m.wwr=_cn(st.wwr)/100;
  m.glazing=m.wallGross*m.wwr;
  m.opaque=m.wallGross-m.glazing;
  m.wallFloor=gsf>0?m.wallGross/gsf:0;
  m.shape=foot>0?perim/Math.sqrt(foot):0;
- m.eff=_cn(st.eff,82)/100;
+ m.effGiven=_cn(st.eff)>0;
+ m.eff=m.effGiven?_cn(st.eff)/100:1;
  m.net=gsf*m.eff;m.circ=gsf-m.net;
  m.vol=gsf*f2f;
  m.roof=foot;m.slab=foot;m.floorStr=Math.max(0,gsf-foot);
+ m.roofSq=m.roof/100;
  m.waste=_cn(st.waste)/100;
 
  var pbase=st.base==='net'?m.net:(st.base==='foot'?foot:gsf);
  m.progBase=pbase;m.progTotal=_sumPct(st.program);
  m.program=[];
- for(var i=0;i<st.program.length;i++){var r=st.program[i];m.program.push({id:r.id,name:r.name,pct:_cn(r.pct),sf:pbase*_cn(r.pct)/100});}
+ var i;
+ for(i=0;i<st.program.length;i++){var r=st.program[i];m.program.push({id:r.id,name:r.name,pct:_cn(r.pct),sf:pbase*_cn(r.pct)/100});}
 
- var fbase=st.finBase==='gsf'?gsf:m.net;
+ var fbase=st.finBase==='net'?m.net:gsf;
  m.finBase=fbase;
  m.floorFin=[];m.floorTotal=_sumPct(st.floorFin);
- for(i=0;i<st.floorFin.length;i++){var f=st.floorFin[i];var sf=fbase*_cn(f.pct)/100;m.floorFin.push({id:f.id,name:f.name,pct:_cn(f.pct),sf:sf,order:sf*(1+m.waste),sy:sf/9});}
+ for(i=0;i<st.floorFin.length;i++){var f=st.floorFin[i];var sf=fbase*_cn(f.pct)/100;
+  m.floorFin.push({id:f.id,name:f.name,pct:_cn(f.pct),sf:sf,order:sf*(1+m.waste),sy:sf/9});}
  m.ceil=[];m.ceilTotal=_sumPct(st.ceil);
- for(i=0;i<st.ceil.length;i++){var c=st.ceil[i];var csf=fbase*_cn(c.pct)/100;m.ceil.push({id:c.id,name:c.name,pct:_cn(c.pct),sf:csf,order:csf*(1+m.waste),panels24:csf/8,panels22:csf/4});}
+ for(i=0;i<st.ceil.length;i++){var c=st.ceil[i];var csf=fbase*_cn(c.pct)/100;
+  m.ceil.push({id:c.id,name:c.name,pct:_cn(c.pct),sf:csf,order:csf*(1+m.waste),panels24:csf/8,panels22:csf/4});}
  m.extFin=[];m.extTotal=_sumPct(st.extFin);
- for(i=0;i<st.extFin.length;i++){var x=st.extFin[i];var xsf=m.opaque*_cn(x.pct)/100;m.extFin.push({id:x.id,name:x.name,pct:_cn(x.pct),sf:xsf,order:xsf*(1+m.waste)});}
+ for(i=0;i<st.extFin.length;i++){var x=st.extFin[i];var xsf=m.opaque*_cn(x.pct)/100;
+  m.extFin.push({id:x.id,name:x.name,pct:_cn(x.pct),sf:xsf,order:xsf*(1+m.waste)});}
 
- m.partH=_cn(st.partH,10);
+ m.partH=_cn(st.partH);
  m.partLF=fbase/100*_cn(st.partLF);
  m.gwb=m.partLF*m.partH*2;
  m.gwbSheets=m.gwb/32*(1+m.waste);
@@ -1048,83 +1030,38 @@ function calcModel(st){
  m.paintGal=m.paintInt*_cn(st.paintCoats,2)/Math.max(1,_cn(st.paintRate,350));
  m.baseLF=m.partLF*2;
  m.doors=_cn(st.doorEvery)>0?fbase/_cn(st.doorEvery):0;
- m.roofSq=m.roof/100;
 
- m.occ=_cn(st.occSF)>0?m.net/_cn(st.occSF):0;
- m.wc=_cn(st.wcRatio)>0?Math.ceil(m.occ/_cn(st.wcRatio)):0;
- m.lav=_cn(st.lavRatio)>0?Math.ceil(m.occ/_cn(st.lavRatio)):0;
- m.df=_cn(st.dfRatio)>0?Math.ceil(m.occ/_cn(st.dfRatio)):0;
- m.egress=m.occ*_cn(st.egressIn,0.2);
- m.exits=m.occ>500?(m.occ>1000?4:3):2;
- m.tons=_cn(st.sfTon)>0?gsf/_cn(st.sfTon):0;
- m.cfm=gsf*_cn(st.cfmSF,1);
- m.cfmTon=m.tons>0?m.cfm/m.tons:0;
- m.kw=gsf*_cn(st.wSF,6)/1000;
- var volts=_cn(st.volts,480),ph=_cn(st.phase,3);
- m.amps=volts>0?(m.kw*1000)/(volts*(ph===3?1.732:1)):0;
- m.kva=m.kw/0.9;
- m.lights=_cn(st.lightSF)>0?gsf/_cn(st.lightSF):0;
- m.heads=_cn(st.headCov)>0?gsf/_cn(st.headCov):0;
- m.drains=_cn(st.drainSF)>0?m.roof/_cn(st.drainSF):0;
- m.elev=_cn(st.elevSF)>0?gsf/_cn(st.elevSF):0;
- m.stalls=gsf/1000*_cn(st.parkRatio);
- m.parkSF=m.stalls*_cn(st.parkStall,350);
-
- /* ---- takeoff lines feeding the cost rollup ---- */
+ /* flat quantity schedule — what the CSV and the clipboard summary export */
  var L=[];
- function add(k,label,qty,uom,grp){L.push({k:k,label:label,qty:qty,uom:uom,grp:grp});}
- add('slab','Slab on grade / lowest floor',m.slab,'SF','Shell');
- add('floor_str','Elevated floor structure',m.floorStr,'SF','Shell');
- add('found','Foundation / perimeter footing',m.perim,'LF','Shell');
- add('roof','Roofing',m.roof,'SF','Shell');
- for(i=0;i<m.extFin.length;i++)add('ex_'+m.extFin[i].id,'Exterior — '+m.extFin[i].name,m.extFin[i].sf,'SF','Shell');
- add('glazing','Glazing / curtain wall',m.glazing,'SF','Shell');
- add('part_lf','Interior partitions',m.partLF,'LF','Interior');
- add('paint_int','Interior paint',m.paintInt,'SF','Interior');
- for(i=0;i<m.floorFin.length;i++)add('ff_'+m.floorFin[i].id,'Floor — '+m.floorFin[i].name,m.floorFin[i].sf,'SF','Interior');
- for(i=0;i<m.ceil.length;i++)add('cl_'+m.ceil[i].id,'Ceiling — '+m.ceil[i].name,m.ceil[i].sf,'SF','Interior');
- add('base_lf','Wall base',m.baseLF,'LF','Interior');
- add('doors','Doors, frames & hardware',m.doors,'EA','Interior');
- add('hvac_ton','Cooling capacity',m.tons,'TON','Systems');
- add('elec_kw','Electrical service',m.kw,'KW','Systems');
- add('lights','Lighting fixtures',m.lights,'EA','Systems');
- add('sprink','Sprinkler heads',m.heads,'EA','Systems');
- add('wc','Water closets / urinals',m.wc,'EA','Systems');
- add('lav','Lavatories',m.lav,'EA','Systems');
- add('df','Drinking fountains',m.df,'EA','Systems');
- add('park','Parking stalls',m.stalls,'EA','Site');
+ function add(label,qty,uom,grp){if(qty)L.push({label:label,qty:qty,uom:uom,grp:grp});}
+ add('Gross floor area',gsf,'SF','Building');
+ add('Footprint / roof area',m.roof,'SF','Building');
+ add('Roofing squares',m.roofSq,'SQ','Building');
+ add('Building perimeter',m.perim,'LF','Building');
+ add('Slab on grade',m.slab,'SF','Building');
+ add('Elevated floor structure',m.floorStr,'SF','Building');
+ add('Building volume',m.vol,'CF','Building');
+ add('Exterior wall (gross)',m.wallGross,'SF','Envelope');
+ add('Glazing',m.glazing,'SF','Envelope');
+ add('Opaque wall',m.opaque,'SF','Envelope');
+ for(i=0;i<m.extFin.length;i++)add('Cladding — '+m.extFin[i].name,m.extFin[i].sf,'SF','Envelope');
+ for(i=0;i<m.program.length;i++)add('Program — '+m.program[i].name,m.program[i].sf,'SF','Program');
+ for(i=0;i<m.floorFin.length;i++)add('Floor — '+m.floorFin[i].name,m.floorFin[i].sf,'SF','Finishes');
+ for(i=0;i<m.ceil.length;i++)add('Ceiling — '+m.ceil[i].name,m.ceil[i].sf,'SF','Finishes');
+ add('Interior partitions',m.partLF,'LF','Finishes');
+ add('Gypsum board (both faces)',m.gwb,'SF','Finishes');
+ add('Interior paint',m.paintInt,'SF','Finishes');
+ add('Wall base',m.baseLF,'LF','Finishes');
+ add('Doors',m.doors,'EA','Finishes');
  m.lines=L;
-
- var sub=0;
- for(i=0;i<L.length;i++){
-  var rate=_calcRate(st,L[i].k);
-  L[i].rate=rate;L[i].ext=rate*L[i].qty;sub+=L[i].ext;
- }
- m.sub=sub;
- var gc=sub*(1+_cn(st.gc)/100);
- var ohp=gc*(1+_cn(st.ohp)/100);
- var cont=ohp*(1+_cn(st.cont)/100);
- var esc=cont*Math.pow(1+_cn(st.esc)/100,_cn(st.escYr));
- m.gcAmt=gc-sub;m.ohpAmt=ohp-gc;m.contAmt=cont-ohp;m.escAmt=esc-cont;
- m.construction=esc;
- m.softAmt=esc*(_cn(st.soft)/100);
- m.project=esc+m.softAmt;
- m.psf=gsf>0?m.project/gsf:0;
- m.csf=gsf>0?m.construction/gsf:0;
  return m;
 }
-function _calcRate(st,k){
- var r=st.rates||{};
- if(r[k]!==undefined&&r[k]!=='')return _cn(r[k]);
- if(k.indexOf('ff_')===0)return CALC_RATES.ff;
- if(k.indexOf('cl_')===0)return CALC_RATES.cl;
- if(k.indexOf('ex_')===0)return CALC_RATES.ex;
- return CALC_RATES[k]!==undefined?CALC_RATES[k]:0;
-}
 
-var CALC_UNITS={sf:{lb:'square feet (SF)',m2:0.09290304},sy:{lb:'square yards (SY)',m2:0.83612736},sq:{lb:'roofing squares (100 SF)',m2:9.290304},
- m2:{lb:'square meters (m²)',m2:1},acre:{lb:'acres',m2:4046.8564224},ha:{lb:'hectares',m2:10000}};
-var CALC_LEN={ft:{lb:'feet (LF)',m:0.3048},in:{lb:'inches',m:0.0254},yd:{lb:'yards',m:0.9144},m:{lb:'meters',m:1},mm:{lb:'millimeters',m:0.001},mi:{lb:'miles',m:1609.344}};
+var CALC_UNITS={sf:{lb:'square feet (SF)',m2:0.09290304},sy:{lb:'square yards (SY)',m2:0.83612736},
+ sq:{lb:'roofing squares (100 SF)',m2:9.290304},m2:{lb:'square meters (m²)',m2:1},
+ acre:{lb:'acres',m2:4046.8564224},ha:{lb:'hectares',m2:10000}};
+var CALC_LEN={ft:{lb:'feet (LF)',m:0.3048},in:{lb:'inches',m:0.0254},yd:{lb:'yards',m:0.9144},
+ m:{lb:'meters',m:1},mm:{lb:'millimeters',m:0.001},mi:{lb:'miles',m:1609.344}};
 
 function CalcView(){
  var h=React.createElement;
@@ -1134,7 +1071,6 @@ function CalcView(){
  var m=calcModel(st);
 
  function set(k,v){setSt(function(p){var n=_ext(p,{});n[k]=v;return n;});}
- function setRate(k,v){setSt(function(p){var r=_ext(p.rates||{},{});r[k]=v;var n=_ext(p,{});n.rates=r;return n;});}
  function setRows(key,rows){setSt(function(p){var n=_ext(p,{});n[key]=rows;return n;});}
  function rowSet(key,id,field,v){var rows=st[key].map(function(r){return r.id===id?_ext(r,field==='name'?{name:v}:{pct:v}):r;});setRows(key,rows);}
  function rowDel(key,id){setRows(key,st[key].filter(function(r){return r.id!==id;}));}
@@ -1147,71 +1083,54 @@ function CalcView(){
   if(diff!==0)scaled[0]=_ext(scaled[0],{pct:Math.round((_cn(scaled[0].pct)+diff)*10)/10});
   setRows(key,scaled);
  }
- function applyType(t){
-  var d=CALC_TYPE_DEFAULTS[t]||{},n=_ext(st,{btype:t});
-  var k;for(k in d)n[k]=String(d[k]);
-  if(CALC_PROGRAM_PRESETS[t])n.program=_rows(CALC_PROGRAM_PRESETS[t]);
-  setSt(n);showToast(t+' defaults applied');
- }
- function reset(){if(!confirm('Reset the calculator to defaults? Current inputs are lost.'))return;setSt(calcDefault());showToast('Calculator reset');}
- function popout(){try{window.open(location.pathname+'#calc','fcacalc','width=1200,height=900');}catch(e){showToast('Popup blocked','er');}}
+ function reset(){if(!confirm('Clear the calculator? Everything typed in is lost.'))return;setSt(calcDefault());showToast('Calculator cleared');}
+ function popout(){try{window.open(location.pathname+'#calc','fcacalc','width=1100,height=900');}catch(e){showToast('Popup blocked','er');}}
 
  function summaryText(){
-  var t=[];
+  var t=[],i;
   t.push('FCA-PRO — Architectural Data Calculator');
-  t.push(st.name+'  ('+st.btype+')');
+  if(st.name)t.push(st.name);
   t.push('');
-  t.push('BUILDING');
-  t.push('  GSF '+_fmtN(m.gsf)+'   Floors '+_fmtN(m.floors)+'   Floor-to-floor '+_fmtN(m.f2f,1)+" '");
-  t.push('  Footprint / roof '+_fmtN(m.roof)+' SF   Perimeter '+_fmtN(m.perim)+' LF   Height '+_fmtN(m.height,1)+" '");
-  t.push('  Exterior wall '+_fmtN(m.wallGross)+' SF   Glazing '+_fmtN(m.glazing)+' SF ('+_fmtN(m.wwr*100,0)+'%)   Opaque '+_fmtN(m.opaque)+' SF');
-  t.push('  Net usable '+_fmtN(m.net)+' SF ('+_fmtN(m.eff*100,0)+'%)   Circulation/service '+_fmtN(m.circ)+' SF   Volume '+_fmtN(m.vol)+' CF');
+  var grp='';
+  for(i=0;i<m.lines.length;i++){
+   if(m.lines[i].grp!==grp){grp=m.lines[i].grp;t.push(grp.toUpperCase());}
+   t.push('  '+m.lines[i].label+' — '+_fmtN(m.lines[i].qty,m.lines[i].qty<100?1:0)+' '+m.lines[i].uom);
+  }
   t.push('');
-  t.push('PROGRAM ('+_fmtN(m.progTotal,1)+'% of '+_fmtN(m.progBase)+' SF)');
-  for(var i=0;i<m.program.length;i++)t.push('  '+m.program[i].name+' — '+_fmtN(m.program[i].pct,1)+'% — '+_fmtN(m.program[i].sf)+' SF');
-  t.push('');
-  t.push('FINISHES (base '+_fmtN(m.finBase)+' SF, waste '+_fmtN(m.waste*100,0)+'%)');
-  for(i=0;i<m.floorFin.length;i++)t.push('  Floor · '+m.floorFin[i].name+' — '+_fmtN(m.floorFin[i].sf)+' SF (order '+_fmtN(m.floorFin[i].order)+' SF / '+_fmtN(m.floorFin[i].sy)+' SY)');
-  for(i=0;i<m.ceil.length;i++)t.push('  Ceiling · '+m.ceil[i].name+' — '+_fmtN(m.ceil[i].sf)+' SF');
-  for(i=0;i<m.extFin.length;i++)t.push('  Exterior · '+m.extFin[i].name+' — '+_fmtN(m.extFin[i].sf)+' SF');
-  t.push('  Partitions '+_fmtN(m.partLF)+' LF   Gyp board '+_fmtN(m.gwb)+' SF ('+_fmtN(m.gwbSheets)+' sheets)   Paint '+_fmtN(m.paintInt)+' SF ('+_fmtN(m.paintGal)+' gal)');
-  t.push('  Wall base '+_fmtN(m.baseLF)+' LF   Doors '+_fmtN(m.doors)+' EA');
-  t.push('');
-  t.push('LOADS');
-  t.push('  Occupants '+_fmtN(m.occ)+'   WC '+_fmtN(m.wc)+'   Lav '+_fmtN(m.lav)+'   DF '+_fmtN(m.df)+'   Egress width '+_fmtN(m.egress)+' in');
-  t.push('  Cooling '+_fmtN(m.tons,1)+' tons   Airflow '+_fmtN(m.cfm)+' CFM   Electrical '+_fmtN(m.kw,1)+' kW / '+_fmtN(m.amps)+' A   Lighting '+_fmtN(m.lights)+' fixtures');
-  t.push('  Sprinkler heads '+_fmtN(m.heads)+'   Roof drains '+_fmtN(m.drains,1)+'   Elevators '+_fmtN(m.elev,1)+'   Parking '+_fmtN(m.stalls)+' stalls');
-  t.push('');
-  t.push('COST');
-  t.push('  Trade subtotal '+fmt$(m.sub));
-  t.push('  Construction total '+fmt$(m.construction)+' ('+fmt$(m.csf)+'/SF)');
-  t.push('  Project total '+fmt$(m.project)+' ('+fmt$(m.psf)+'/SF)');
+  t.push('ORDER QUANTITIES (waste '+_fmtN(m.waste*100,0)+'%)');
+  for(i=0;i<m.floorFin.length;i++)if(m.floorFin[i].sf)
+   t.push('  Floor · '+m.floorFin[i].name+' — '+_fmtN(m.floorFin[i].order)+' SF / '+_fmtN(m.floorFin[i].sy)+' SY');
+  for(i=0;i<m.ceil.length;i++)if(m.ceil[i].sf)
+   t.push('  Ceiling · '+m.ceil[i].name+' — '+_fmtN(m.ceil[i].order)+' SF / '+_fmtN(m.ceil[i].panels24)+' 2×4 panels');
+  if(m.gwb)t.push('  Gypsum board — '+_fmtN(m.gwbSheets)+' sheets 4×8 · studs @16" o.c. '+_fmtN(m.studs));
+  if(m.paintGal)t.push('  Paint — '+_fmtN(m.paintGal)+' gal ('+st.paintCoats+' coats @ '+st.paintRate+' SF/gal)');
   return t.join('\n');
  }
  function copySummary(){
   var txt=summaryText();
   try{
-   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){showToast('Summary copied');},function(){_calcFallbackCopy(txt);});}
+   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){showToast('Quantities copied');},function(){_calcFallbackCopy(txt);});}
    else _calcFallbackCopy(txt);
   }catch(e){_calcFallbackCopy(txt);}
  }
- function exportJSON(){_dlJSON({app:'FCA_PRO_CALC',version:1,exported:new Date().toISOString(),name:st.name,inputs:st},'FCA_Calc_'+(st.name||'study').replace(/[^a-z0-9]+/gi,'_')+'.json');showToast('Calculator exported');}
  function exportCSV(){
-  var rows=[['Group','Item','Quantity','Unit','Unit cost','Extended']],i;
-  for(i=0;i<m.lines.length;i++){var L=m.lines[i];rows.push([L.grp,L.label,Math.round(L.qty*100)/100,L.uom,L.rate,Math.round(L.ext)]);}
+  var rows=[['Group','Quantity item','Quantity','Unit']],i;
+  for(i=0;i<m.lines.length;i++)rows.push([m.lines[i].grp,m.lines[i].label,Math.round(m.lines[i].qty*100)/100,m.lines[i].uom]);
   var csv=rows.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"';}).join(',');}).join('\n');
   var blob=new Blob([csv],{type:'text/csv'});var url=URL.createObjectURL(blob);var a=document.createElement('a');
-  a.href=url;a.download='FCA_Calc_Takeoff.csv';document.body.appendChild(a);a.click();
+  a.href=url;a.download='FCA_Quantities'+(st.name?'_'+st.name.replace(/[^a-z0-9]+/gi,'_'):'')+'.csv';
+  document.body.appendChild(a);a.click();
   setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(url);},100);
-  showToast('Takeoff CSV exported');
+  showToast('Quantities exported');
  }
 
- /* ---------- small building blocks ---------- */
+ /* ---------- building blocks ---------- */
  function fld(label,key,suffix,hint){
   return h('div',{className:'fg',key:key},
    h('label',null,label),
    h('div',{style:{position:'relative',display:'flex',alignItems:'center'}},
-    h('input',{className:'mono',type:'text',inputMode:'decimal',value:st[key]===undefined?'':st[key],onChange:function(e){set(key,e.target.value);},style:suffix?{paddingRight:38}:null}),
+    h('input',{className:'mono',type:'text',inputMode:'decimal',value:st[key]===undefined?'':st[key],
+      onChange:function(e){set(key,e.target.value);},style:suffix?{paddingRight:38}:null}),
     suffix?h('span',{style:{position:'absolute',right:9,fontSize:10,color:'var(--tx4)',fontFamily:'var(--mono)',pointerEvents:'none'}},suffix):null),
    hint?h('div',{style:{fontSize:9,color:'var(--tx4)',fontFamily:'var(--mono)'}},hint):null);
  }
@@ -1227,7 +1146,7 @@ function CalcView(){
  }
  function splitTable(key,rows,modelRows,base,baseLabel,extraCols){
   var tot=_sumPct(rows);
-  var off=Math.abs(tot-100)>0.05;
+  var off=tot>0&&Math.abs(tot-100)>0.05;
   return h('div',null,
    h('div',{className:'tw',style:{marginBottom:8}},
     h('table',null,
@@ -1235,88 +1154,87 @@ function CalcView(){
       h('th',{style:{textAlign:'left'}},'Line'),
       h('th',{style:{width:100,textAlign:'right'}},'% of base'),
       h('th',{style:{width:110,textAlign:'right'}},'Area (SF)'),
-      extraCols?h('th',{style:{width:150,textAlign:'right'}},extraCols.head):null,
+      extraCols?h('th',{style:{width:170,textAlign:'right'}},extraCols.head):null,
       h('th',{style:{width:34}},''))),
      h('tbody',null,rows.map(function(r,i){
       var mr=modelRows[i]||{sf:0};
       return h('tr',{key:r.id},
-       h('td',null,h('input',{value:r.name,onChange:function(e){rowSet(key,r.id,'name',e.target.value);},style:{border:'none',background:'transparent',padding:'2px 0'}})),
-       h('td',null,h('input',{className:'mono',type:'text',inputMode:'decimal',value:r.pct,onChange:function(e){rowSet(key,r.id,'pct',e.target.value);},style:{textAlign:'right',padding:'2px 4px'}})),
+       h('td',null,h('input',{value:r.name,onChange:function(e){rowSet(key,r.id,'name',e.target.value);},
+         style:{border:'none',background:'transparent',padding:'2px 0'}})),
+       h('td',null,h('input',{className:'mono',type:'text',inputMode:'decimal',value:r.pct,
+         onChange:function(e){rowSet(key,r.id,'pct',e.target.value);},style:{textAlign:'right',padding:'2px 4px'}})),
        h('td',{className:'mono',style:{textAlign:'right'}},_fmtN(mr.sf)),
-       extraCols?h('td',{className:'mono',style:{textAlign:'right',color:'var(--tx3)'}},extraCols.cell(mr)):null,
+       extraCols?h('td',{className:'mono',style:{textAlign:'right',color:'var(--tx3)'}},mr.sf?extraCols.cell(mr):'—'):null,
        h('td',null,h('button',{className:'btn-ic',title:'Remove',onClick:function(){rowDel(key,r.id);}},'×')));
      })),
      h('tfoot',null,h('tr',null,
       h('td',{style:{fontWeight:600}},'Total'),
-      h('td',{className:'mono',style:{textAlign:'right',color:off?'var(--am)':'var(--gr)'}},_fmtN(tot,1)+'%'),
+      h('td',{className:'mono',style:{textAlign:'right',color:off?'var(--am)':'var(--tx2)'}},_fmtN(tot,1)+'%'),
       h('td',{className:'mono',style:{textAlign:'right'}},_fmtN(tot/100*base)),
       extraCols?h('td',null,''):null,h('td',null,''))))),
    h('div',{style:{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}},
     h('button',{className:'btn btn-g btn-xs',onClick:function(){rowAdd(key);}},'+ Line'),
     h('button',{className:'btn btn-g btn-xs',onClick:function(){balance(key);}},'Balance to 100%'),
     h('span',{style:{fontSize:10,color:off?'var(--am)':'var(--tx4)',fontFamily:'var(--mono)'}},
-      off?('Percentages total '+_fmtN(tot,1)+'% — '+(tot>100?'over':'under')+' by '+_fmtN(Math.abs(100-tot),1)+' pts'):('Balanced · base '+baseLabel))));
+      off?('Total '+_fmtN(tot,1)+'% — '+(tot>100?'over':'under')+' by '+_fmtN(Math.abs(100-tot),1)+' pts')
+         :('Base '+baseLabel))));
  }
 
- /* ---------- tabs ---------- */
- var TABS=[['bldg','Building & Envelope'],['prog','Area Program'],['fin','Finishes'],['sys','Loads & Systems'],['cost','Cost Rollup'],['conv','Converter']];
+ var TABS=[['bldg','Building & Envelope'],['prog','Area Split'],['fin','Finishes'],['conv','Converter']];
 
  var bldgTab=h('div',null,
-  card('Building inputs',
-   h('select',{value:st.btype,style:{width:190,fontSize:11},onChange:function(e){applyType(e.target.value);}},
-    Object.keys(CALC_TYPE_DEFAULTS).map(function(t){return h('option',{key:t,value:t},t);})),
+  card('Building — type everything in',null,
    h('div',null,
     h('div',{className:'fg3'},
-     fld('Gross area','gsf','SF'),
+     fld('Gross floor area','gsf','SF','the building area, entered by hand'),
      fld('Floors above grade','floors'),
      fld('Floors below grade','bg')),
     h('div',{className:'fg3',style:{marginTop:10}},
      fld('Floor-to-floor height','f2f','ft'),
-     fld('Plan aspect ratio (L:W)','ratio','',''),
-     fld('Footprint override','foot','SF','blank = GSF ÷ floors')),
+     fld('Footprint','foot','SF','blank = gross area ÷ floors'),
+     fld('Perimeter','perim','LF',m.perimOverride?('typed in; from footprint it would be '+_fmtN(m.perimAuto)+' LF'):'blank = from footprint + plan ratio')),
     h('div',{className:'fg3',style:{marginTop:10}},
-     fld('Perimeter override','perim','LF',m.perimOverride?'auto would be '+_fmtN(m.perimAuto)+' LF':'auto from footprint + ratio'),
-     fld('Window-to-wall ratio','wwr','%'),
-     fld('Net-to-gross efficiency','eff','%')))),
-  card('Derived quantities',null,
+     fld('Plan ratio (long : short)','ratio','','only used when the perimeter is blank'),
+     fld('Window-to-wall ratio','wwr','%','blank = no glazing taken out'),
+     fld('Net-to-gross','eff','%','blank = net equals gross')))),
+  card('Areas',null,
    h('div',{className:'stats',style:{marginBottom:0}},
-    stat('Footprint / roof',_fmtN(m.roof),'SF','bl'),
-    stat('Perimeter',_fmtN(m.perim),'LF'),
+    stat('Gross floor area',_fmtN(m.gsf),'SF','bl'),
+    stat('Footprint / roof',_fmtN(m.roof),'SF'),
+    stat('Roofing squares',_fmtN(m.roofSq,1),'SQ'),
+    stat('Slab on grade',_fmtN(m.slab),'SF'),
+    stat('Elevated floor structure',_fmtN(m.floorStr),'SF'),
+    stat('Net usable area',_fmtN(m.net),'SF','gr'),
+    stat(m.effGiven?'Circulation / service':'Circulation (needs net-to-gross)',_fmtN(m.circ),'SF'),
+    stat('Building volume',_fmtN(m.vol),'CF'))),
+  card('Envelope',null,
+   h('div',{className:'stats',style:{marginBottom:0}},
+    stat('Perimeter',_fmtN(m.perim),'LF','bl'),
     stat('Building height',_fmtN(m.height,1),'ft'),
     stat('Exterior wall (gross)',_fmtN(m.wallGross),'SF','am'),
-    stat('Glazing',_fmtN(m.glazing),'SF','bl'),
-    stat('Opaque wall',_fmtN(m.opaque),'SF'),
-    stat('Net usable area',_fmtN(m.net),'SF','gr'),
-    stat('Circulation / service',_fmtN(m.circ),'SF'),
-    stat('Elevated floor structure',_fmtN(m.floorStr),'SF'),
-    stat('Slab on grade',_fmtN(m.slab),'SF'),
-    stat('Building volume',_fmtN(m.vol),'CF'),
-    stat('Roofing squares',_fmtN(m.roofSq,1),'SQ'))),
-  card('Shape & efficiency checks',null,
-   h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,fontSize:12}},
+    stat('Glazing',_fmtN(m.glazing),'SF'),
+    stat('Opaque wall',_fmtN(m.opaque),'SF','gr'))),
+  card('Checks',null,
+   h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,fontSize:12}},
     h('div',null,h('b',null,'Wall-to-floor ratio '),h('span',{className:'mono'},_fmtN(m.wallFloor,2)),
-     h('div',{style:{fontSize:10,color:'var(--tx3)'}},'SF of exterior wall per SF of floor. Compact buildings run 0.3–0.5; anything over ~0.8 is an envelope-heavy shape.')),
+     h('div',{style:{fontSize:10,color:'var(--tx3)'}},'SF of exterior wall per SF of floor — how envelope-heavy the shape is.')),
     h('div',null,h('b',null,'Shape factor '),h('span',{className:'mono'},_fmtN(m.shape,2)),
-     h('div',{style:{fontSize:10,color:'var(--tx3)'}},'Perimeter ÷ √footprint. A square reads 4.00; the higher the number the more perimeter you are buying.')),
-    h('div',null,h('b',null,'Assumed plan '),h('span',{className:'mono'},_fmtN(m.length,1)+" ' × "+_fmtN(m.width,1)+" '"),
-     h('div',{style:{fontSize:10,color:'var(--tx3)'}},'Rectangle implied by footprint and aspect ratio. Override the perimeter for irregular plans.')),
-    h('div',null,h('b',null,'Loss factor '),h('span',{className:'mono'},_fmtN((1-m.eff)*100,1)+'%'),
-     h('div',{style:{fontSize:10,color:'var(--tx3)'}},'Gross area consumed by circulation, walls, shafts and mechanical space.')))));
+     h('div',{style:{fontSize:10,color:'var(--tx3)'}},'Perimeter ÷ √footprint. A square reads 4.00.')),
+    h('div',null,h('b',null,'Plan implied by the ratio '),h('span',{className:'mono'},m.foot?(_fmtN(m.length,1)+" ' × "+_fmtN(m.width,1)+" '"):'—'),
+     h('div',{style:{fontSize:10,color:'var(--tx3)'}},'Rectangle behind the perimeter figure. Type a perimeter for any other plan.')),
+    h('div',null,h('b',null,'Loss factor '),h('span',{className:'mono'},m.effGiven?(_fmtN((1-m.eff)*100,1)+'%'):'—'),
+     h('div',{style:{fontSize:10,color:'var(--tx3)'}},'Gross area taken up by circulation, walls, shafts and mechanical space.')))));
 
  var progTab=h('div',null,
-  card('Area program split',
+  card('Area split',
    h('div',{style:{display:'flex',gap:6,alignItems:'center'}},
     h('span',{style:{fontSize:10,color:'var(--tx3)',fontFamily:'var(--mono)'}},'BASE'),
     h('select',{value:st.base,style:{width:210,fontSize:11},onChange:function(e){set('base',e.target.value);}},
-     h('option',{value:'gsf'},'Gross area — '+_fmtN(m.gsf)+' SF'),
-     h('option',{value:'net'},'Net usable area — '+_fmtN(m.net)+' SF'),
+     h('option',{value:'gsf'},'Gross — '+_fmtN(m.gsf)+' SF'),
+     h('option',{value:'net'},'Net usable — '+_fmtN(m.net)+' SF'),
      h('option',{value:'foot'},'Footprint — '+_fmtN(m.foot)+' SF'))),
-   h('div',null,
-    h('div',{style:{display:'flex',gap:6,marginBottom:10,flexWrap:'wrap'}},
-     Object.keys(CALC_PROGRAM_PRESETS).map(function(t){
-      return h('button',{key:t,className:'sort-chip'+(st.btype===t?' on':''),onClick:function(){setRows('program',_rows(CALC_PROGRAM_PRESETS[t]));set('btype',t);}},t);})),
-    splitTable('program',st.program,m.program,m.progBase,_fmtN(m.progBase)+' SF',null))),
-  card('Program roll-up',null,
+   splitTable('program',st.program,m.program,m.progBase,_fmtN(m.progBase)+' SF',null)),
+  card('Split roll-up',null,
    h('div',{className:'stats',style:{marginBottom:0}},
     stat('Base area',_fmtN(m.progBase),'SF','bl'),
     stat('Allocated',_fmtN(m.progTotal/100*m.progBase),'SF',Math.abs(m.progTotal-100)>0.05?'am':'gr'),
@@ -1328,8 +1246,8 @@ function CalcView(){
    h('div',{style:{display:'flex',gap:6,alignItems:'center'}},
     h('span',{style:{fontSize:10,color:'var(--tx3)',fontFamily:'var(--mono)'}},'BASE'),
     h('select',{value:st.finBase,style:{width:200,fontSize:11},onChange:function(e){set('finBase',e.target.value);}},
-     h('option',{value:'net'},'Net usable — '+_fmtN(m.net)+' SF'),
-     h('option',{value:'gsf'},'Gross — '+_fmtN(m.gsf)+' SF'))),
+     h('option',{value:'gsf'},'Gross — '+_fmtN(m.gsf)+' SF'),
+     h('option',{value:'net'},'Net usable — '+_fmtN(m.net)+' SF'))),
    h('div',{className:'fg3'},
     fld('Waste / attic stock','waste','%'),
     fld('Partition density','partLF','LF','LF of partition per 100 SF of floor'),
@@ -1337,14 +1255,14 @@ function CalcView(){
   card('Floor finishes',null,splitTable('floorFin',st.floorFin,m.floorFin,m.finBase,_fmtN(m.finBase)+' SF',
    {head:'Order qty (w/ waste)',cell:function(r){return _fmtN(r.order)+' SF · '+_fmtN(r.sy)+' SY';}})),
   card('Ceilings',null,splitTable('ceil',st.ceil,m.ceil,m.finBase,_fmtN(m.finBase)+' SF',
-   {head:'2×4 panels / 2×2 panels',cell:function(r){return _fmtN(r.panels24)+' / '+_fmtN(r.panels22);}})),
+   {head:'2×4 / 2×2 panels',cell:function(r){return _fmtN(r.panels24)+' / '+_fmtN(r.panels22);}})),
   card('Exterior cladding',null,splitTable('extFin',st.extFin,m.extFin,m.opaque,_fmtN(m.opaque)+' SF opaque wall',
    {head:'Order qty (w/ waste)',cell:function(r){return _fmtN(r.order)+' SF';}})),
-  card('Partitions, paint & openings',
+  card('Partitions, paint & doors',
    h('div',{style:{display:'flex',gap:6}},
-    h('div',{style:{width:120}},fld('Paint coats','paintCoats')),
+    h('div',{style:{width:110}},fld('Paint coats','paintCoats')),
     h('div',{style:{width:150}},fld('Spread rate','paintRate','SF/gal')),
-    h('div',{style:{width:150}},fld('Door every','doorEvery','SF'))),
+    h('div',{style:{width:150}},fld('One door every','doorEvery','SF'))),
    h('div',{className:'stats',style:{marginBottom:0}},
     stat('Partition length',_fmtN(m.partLF),'LF','bl'),
     stat('Gypsum board (2 faces)',_fmtN(m.gwb),'SF'),
@@ -1355,153 +1273,34 @@ function CalcView(){
     stat('Wall base',_fmtN(m.baseLF),'LF'),
     stat('Doors',_fmtN(m.doors),'EA','gr'))));
 
- var sysTab=h('div',null,
-  card('Occupancy & plumbing',
-   null,
-   h('div',null,
-    h('div',{className:'fg3'},
-     fld('Area per occupant','occSF','SF','net area ÷ this = occupant load'),
-     fld('Occupants per WC','wcRatio'),
-     fld('Occupants per lavatory','lavRatio')),
-    h('div',{className:'fg3',style:{marginTop:10}},
-     fld('Occupants per fountain','dfRatio'),
-     fld('Egress width per occupant','egressIn','in'),
-     h('div',{className:'fg',key:'sp'})),
-    h('div',{className:'stats',style:{marginTop:12,marginBottom:0}},
-     stat('Occupant load',_fmtN(m.occ),'people','bl'),
-     stat('Water closets',_fmtN(m.wc),'EA'),
-     stat('Lavatories',_fmtN(m.lav),'EA'),
-     stat('Drinking fountains',_fmtN(m.df),'EA'),
-     stat('Egress width',_fmtN(m.egress),'in','am'),
-     stat('Exits (rule of thumb)',_fmtN(m.exits),'')))),
-  card('Mechanical & electrical',null,
-   h('div',null,
-    h('div',{className:'fg3'},
-     fld('Area per cooling ton','sfTon','SF'),
-     fld('Airflow','cfmSF','CFM/SF'),
-     fld('Connected load','wSF','W/SF')),
-    h('div',{className:'fg3',style:{marginTop:10}},
-     fld('Service voltage','volts','V'),
-     fld('Phase (1 or 3)','phase'),
-     fld('Area per light fixture','lightSF','SF')),
-    h('div',{className:'stats',style:{marginTop:12,marginBottom:0}},
-     stat('Cooling capacity',_fmtN(m.tons,1),'tons','bl'),
-     stat('Supply air',_fmtN(m.cfm),'CFM'),
-     stat('CFM per ton',_fmtN(m.cfmTon),'','' ),
-     stat('Connected load',_fmtN(m.kw,1),'kW','am'),
-     stat('Service size',_fmtN(m.amps),'A'),
-     stat('Transformer',_fmtN(m.kva,1),'kVA'),
-     stat('Light fixtures',_fmtN(m.lights),'EA','gr')))),
-  card('Fire, vertical transport & site',null,
-   h('div',null,
-    h('div',{className:'fg3'},
-     fld('Sprinkler head coverage','headCov','SF'),
-     fld('Roof area per drain','drainSF','SF'),
-     fld('Area per elevator','elevSF','SF')),
-    h('div',{className:'fg3',style:{marginTop:10}},
-     fld('Parking ratio','parkRatio','/1000 SF'),
-     fld('Area per stall','parkStall','SF'),
-     h('div',{className:'fg',key:'sp2'})),
-    h('div',{className:'stats',style:{marginTop:12,marginBottom:0}},
-     stat('Sprinkler heads',_fmtN(m.heads),'EA','bl'),
-     stat('Roof drains',_fmtN(Math.ceil(m.drains)),'EA'),
-     stat('Elevators',_fmtN(Math.ceil(m.elev)),'EA'),
-     stat('Parking stalls',_fmtN(Math.ceil(m.stalls)),'EA','gr'),
-     stat('Parking area',_fmtN(m.parkSF),'SF')))));
-
- var grps=['Shell','Interior','Systems','Site'];
- var costTab=h('div',null,
-  card('Takeoff & unit costs',
-   h('div',{style:{display:'flex',gap:6}},
-    h('button',{className:'btn btn-g btn-xs',onClick:exportCSV},'Export CSV'),
-    h('button',{className:'btn btn-g btn-xs',onClick:function(){setSt(function(p){var n=_ext(p,{});n.rates={};return n;});showToast('Unit costs reset to starter rates');}},'Reset rates')),
-   h('div',null,
-    h('div',{style:{fontSize:10,color:'var(--tx4)',marginBottom:8,fontFamily:'var(--mono)'}},
-     'STARTER RATES ARE ORDER-OF-MAGNITUDE PLACEHOLDERS — REPLACE WITH YOUR OWN BEFORE USING A NUMBER ANYWHERE'),
-    h('div',{className:'tw'},
-     h('table',null,
-      h('thead',null,h('tr',null,
-       h('th',{style:{textAlign:'left'}},'Item'),
-       h('th',{style:{width:110,textAlign:'right'}},'Quantity'),
-       h('th',{style:{width:50}},'Unit'),
-       h('th',{style:{width:110,textAlign:'right'}},'$ / unit'),
-       h('th',{style:{width:120,textAlign:'right'}},'Extended'))),
-      h('tbody',null,(function(){
-       var out=[];
-       for(var g=0;g<grps.length;g++){
-        var gl=m.lines.filter(function(L){return L.grp===grps[g];});
-        if(!gl.length)continue;
-        var gtot=0;for(var q=0;q<gl.length;q++)gtot+=gl[q].ext;
-        out.push(h('tr',{key:'g'+g},h('td',{colSpan:4,style:{background:'var(--bg3)',fontFamily:'var(--mono)',fontSize:10,letterSpacing:'.08em',textTransform:'uppercase',color:'var(--tx3)'}},grps[g]),
-         h('td',{className:'mono',style:{background:'var(--bg3)',textAlign:'right',fontSize:11}},fmt$(gtot))));
-        for(var i=0;i<gl.length;i++)(function(L){
-         out.push(h('tr',{key:L.k},
-          h('td',null,L.label),
-          h('td',{className:'mono',style:{textAlign:'right'}},_fmtN(L.qty,L.qty<100?1:0)),
-          h('td',{className:'mono',style:{fontSize:10,color:'var(--tx3)'}},L.uom),
-          h('td',null,h('input',{className:'mono',type:'text',inputMode:'decimal',
-            value:(st.rates&&st.rates[L.k]!==undefined)?st.rates[L.k]:String(L.rate),
-            onChange:function(e){setRate(L.k,e.target.value);},style:{textAlign:'right',padding:'2px 4px'}})),
-          h('td',{className:'mono',style:{textAlign:'right'}},fmt$(L.ext))));
-        })(gl[i]);
-       }
-       return out;
-      })())))))
-,
-  card('Markups',null,
-   h('div',null,
-    h('div',{className:'fg3'},
-     fld('General conditions','gc','%'),
-     fld('GC overhead & profit','ohp','%'),
-     fld('Design contingency','cont','%')),
-    h('div',{className:'fg3',style:{marginTop:10}},
-     fld('Escalation per year','esc','%'),
-     fld('Years to midpoint','escYr','yr'),
-     fld('Soft costs','soft','%')))),
-  card('Rollup',null,
-   h('div',null,
-    h('div',{className:'tw',style:{marginBottom:12}},
-     h('table',null,h('tbody',null,
-      [['Trade subtotal',m.sub],['General conditions',m.gcAmt],['Overhead & profit',m.ohpAmt],['Design contingency',m.contAmt],['Escalation',m.escAmt],['Construction total',m.construction],['Soft costs',m.softAmt],['Project total',m.project]]
-       .map(function(r,i){
-        var bold=r[0]==='Construction total'||r[0]==='Project total';
-        return h('tr',{key:r[0]},
-         h('td',{style:bold?{fontWeight:700}:null},r[0]),
-         h('td',{className:'mono',style:{textAlign:'right',fontWeight:bold?700:400,color:bold?'var(--ac)':'var(--tx)'}},fmt$(r[1])));
-       })))),
-    h('div',{className:'stats',style:{marginBottom:0}},
-     stat('Construction $/SF',fmt$(m.csf),'','bl'),
-     stat('Project $/SF',fmt$(m.psf),'','am'),
-     stat('Project total',fmt$(m.project),'','gr')))));
-
  var cv=(function(){
-  var v=_cn(st.cvVal),from=st.cvFrom,to=st.cvTo,res=null,kind=null;
-  if(CALC_UNITS[from]&&CALC_UNITS[to]){res=v*CALC_UNITS[from].m2/CALC_UNITS[to].m2;kind='area';}
-  else if(CALC_LEN[from]&&CALC_LEN[to]){res=v*CALC_LEN[from].m/CALC_LEN[to].m;kind='length';}
-  return {res:res,kind:kind};
+  var v=_cn(st.cvVal),from=st.cvFrom,to=st.cvTo;
+  if(CALC_UNITS[from]&&CALC_UNITS[to])return v*CALC_UNITS[from].m2/CALC_UNITS[to].m2;
+  if(CALC_LEN[from]&&CALC_LEN[to])return v*CALC_LEN[from].m/CALC_LEN[to].m;
+  return null;
  })();
+ function unitOpts(){
+  return [h('optgroup',{key:'a',label:'Area'},Object.keys(CALC_UNITS).map(function(u){return h('option',{key:u,value:u},CALC_UNITS[u].lb);})),
+          h('optgroup',{key:'l',label:'Length'},Object.keys(CALC_LEN).map(function(u){return h('option',{key:u,value:u},CALC_LEN[u].lb);}))];
+ }
  var convTab=h('div',null,
   card('Unit converter',null,
    h('div',null,
     h('div',{className:'fg3'},
      fld('Value','cvVal'),
      h('div',{className:'fg',key:'from'},h('label',null,'From'),
-      h('select',{value:st.cvFrom,onChange:function(e){set('cvFrom',e.target.value);}},
-       h('optgroup',{label:'Area'},Object.keys(CALC_UNITS).map(function(u){return h('option',{key:u,value:u},CALC_UNITS[u].lb);})),
-       h('optgroup',{label:'Length'},Object.keys(CALC_LEN).map(function(u){return h('option',{key:u,value:u},CALC_LEN[u].lb);})))),
+      h('select',{value:st.cvFrom,onChange:function(e){set('cvFrom',e.target.value);}},unitOpts())),
      h('div',{className:'fg',key:'to'},h('label',null,'To'),
-      h('select',{value:st.cvTo,onChange:function(e){set('cvTo',e.target.value);}},
-       h('optgroup',{label:'Area'},Object.keys(CALC_UNITS).map(function(u){return h('option',{key:u,value:u},CALC_UNITS[u].lb);})),
-       h('optgroup',{label:'Length'},Object.keys(CALC_LEN).map(function(u){return h('option',{key:u,value:u},CALC_LEN[u].lb);}))))),
-    h('div',{style:{marginTop:12,fontSize:20,fontFamily:'var(--mono)',color:cv.res===null?'var(--am)':'var(--ac)'}},
-     cv.res===null?'Pick two units of the same kind (area→area or length→length)':(_fmtN(_cn(st.cvVal),2)+' → '+_fmtN(cv.res,3))))),
+      h('select',{value:st.cvTo,onChange:function(e){set('cvTo',e.target.value);}},unitOpts()))),
+    h('div',{style:{marginTop:12,fontSize:20,fontFamily:'var(--mono)',color:cv===null?'var(--am)':'var(--ac)'}},
+     cv===null?'Pick two units of the same kind (area→area or length→length)':(_fmtN(_cn(st.cvVal),2)+' → '+_fmtN(cv,3))))),
   card('Percentage helper',null,
    h('div',null,
     h('div',{className:'fg2'},fld('Percent','pcA','%'),fld('Of quantity','pcB')),
     h('div',{style:{marginTop:10,fontSize:13,lineHeight:1.9}},
      h('div',null,h('span',{className:'mono',style:{color:'var(--ac)'}},_fmtN(_cn(st.pcA),2)+'% of '+_fmtN(_cn(st.pcB),2)+' = '+_fmtN(_cn(st.pcB)*_cn(st.pcA)/100,2))),
      h('div',null,h('span',{className:'mono',style:{color:'var(--gr)'}},_fmtN(_cn(st.pcA),2)+' is '+(_cn(st.pcB)?_fmtN(_cn(st.pcA)/_cn(st.pcB)*100,3):'—')+'% of '+_fmtN(_cn(st.pcB),2))),
-     h('div',null,h('span',{className:'mono',style:{color:'var(--am)'}},'Remainder: '+_fmtN(_cn(st.pcB)*(100-_cn(st.pcA))/100,2)+' ('+_fmtN(100-_cn(st.pcA),2)+'%)'))))),
+     h('div',null,h('span',{className:'mono',style:{color:'var(--am)'}},'Remainder '+_fmtN(_cn(st.pcB)*(100-_cn(st.pcA))/100,2)+' ('+_fmtN(100-_cn(st.pcA),2)+'%)'))))),
   card('Common yields',null,
    h('div',{className:'tw'},
     h('table',null,
@@ -1511,34 +1310,34 @@ function CalcView(){
       ['ACT 2×4','SF ÷ 8 = panels'],['ACT 2×2','SF ÷ 4 = panels'],
       ['Gypsum board','SF ÷ 32 = 4×8 sheets'],['Studs @ 16" o.c.','LF × 0.75 + 1 = studs'],
       ['Paint','SF × coats ÷ 350 = gallons'],['12×12 tile','SF = pieces'],
-      ['Concrete','SF × thickness(in) ÷ 324 = CY'],['Occupant load','net SF ÷ SF-per-occupant']
+      ['Concrete','SF × thickness(in) ÷ 324 = CY']
      ].map(function(r){return h('tr',{key:r[0]},h('td',null,r[0]),h('td',{className:'mono',style:{fontSize:11,color:'var(--tx3)'}},r[1]));}))))));
 
- var body=tab==='bldg'?bldgTab:tab==='prog'?progTab:tab==='fin'?finTab:tab==='sys'?sysTab:tab==='cost'?costTab:convTab;
+ var body=tab==='bldg'?bldgTab:tab==='prog'?progTab:tab==='fin'?finTab:convTab;
 
- return h('div',{style:{padding:'18px 20px',maxWidth:1180,margin:'0 auto'}},
+ return h('div',{style:{padding:'18px 20px',maxWidth:1080,margin:'0 auto'}},
   h('div',{style:{display:'flex',alignItems:'center',gap:10,marginBottom:6,flexWrap:'wrap'}},
    h('div',{style:{flex:1,minWidth:240}},
     h('div',{style:{fontSize:19,fontWeight:700}},'Architectural Data Calculator'),
-    h('div',{style:{fontSize:11,color:'var(--tx3)',fontFamily:'var(--mono)'}},'IN-HOUSE TAKEOFF TOOL · NOT LINKED TO ANY BUILDING RECORD')),
+    h('div',{style:{fontSize:11,color:'var(--tx3)',fontFamily:'var(--mono)'}},'AREAS & QUANTITIES · NOT LINKED TO ANY BUILDING RECORD')),
    h('button',{className:'btn btn-g btn-sm',onClick:popout},'Open in new window'),
-   h('button',{className:'btn btn-g btn-sm',onClick:copySummary},'Copy summary'),
-   h('button',{className:'btn btn-g btn-sm',onClick:exportJSON},'Export'),
-   h('button',{className:'btn btn-g btn-sm',onClick:reset},'Reset')),
+   h('button',{className:'btn btn-g btn-sm',onClick:copySummary},'Copy quantities'),
+   h('button',{className:'btn btn-g btn-sm',onClick:exportCSV},'Export CSV'),
+   h('button',{className:'btn btn-g btn-sm',onClick:reset},'Clear')),
   h('div',{style:{marginBottom:12}},
-   h('input',{value:st.name,placeholder:'Study name',onChange:function(e){set('name',e.target.value);},style:{maxWidth:340}})),
+   h('input',{value:st.name,placeholder:'Name this calc (optional)',onChange:function(e){set('name',e.target.value);},style:{maxWidth:340}})),
   h('div',{className:'sub-tabs',style:{marginBottom:14,borderRadius:'var(--r)'}},
    TABS.map(function(t){
     return h('button',{key:t[0],className:'sub-tab'+(tab===t[0]?' active':''),onClick:function(){setTab(t[0]);}},t[1]);})),
   body,
   h('div',{style:{fontSize:10,color:'var(--tx4)',marginTop:18,lineHeight:1.7}},
-   'Every figure here is generated from the ratios above — they are planning-grade rules of thumb, not code compliance or a bid. Plumbing fixture counts must be checked against the adopted plumbing code, egress against the adopted building code, and unit costs against current local pricing. Inputs save automatically on this device only.'));
+   'Areas and counts only — nothing here is priced, and nothing is assumed for you: every figure comes from a number typed in above. Inputs save on this device only.'));
 }
 function _calcFallbackCopy(txt){
  try{
   var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
   document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
-  showToast('Summary copied');
+  showToast('Quantities copied');
  }catch(e){showToast('Could not copy','er');}
 }
 

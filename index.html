@@ -1838,6 +1838,27 @@ var DONUT_RAMPS = {
   hcl:  ['#18181B', '#3F3F46', '#71717A', '#A1A1AA']
 };
 
+/* The hole is fixed but the centre value is not: "$53,664,500" is twice the
+   width of "163". Measure the string in the real display face and step the
+   size down until it clears the ring. */
+var _measureCtx = null;
+function _dispWidth(str, fontSize) {
+  if (!_measureCtx) {
+    var c = document.createElement('canvas');
+    _measureCtx = c.getContext('2d');
+  }
+  if (!_measureCtx) return String(str).length * fontSize * 0.55;
+  _measureCtx.font = '900 ' + fontSize + "px 'IBM Plex Sans Condensed'," +
+                     "'IBM Plex Sans',system-ui,sans-serif";
+  return _measureCtx.measureText(String(str)).width;
+}
+
+function _fitFont(str, avail, base, min) {
+  var w = _dispWidth(str, base);
+  if (!(w > avail)) return base;
+  return Math.max(min, Math.floor(base * (avail / w) * 2) / 2);
+}
+
 function donutSlices(rows, total) {
   /* rows: [{key,label,value,color}] -> adds pct + dash geometry. */
   var out = [], acc = 0;
@@ -1926,6 +1947,11 @@ function Donut(props) {
   var centerTop = focus ? fmt(focus.value) : (props.centerValue != null ? props.centerValue : fmt(total));
   var centerSub = focus ? focus.label : (props.centerLabel || 'Total');
 
+  // 84% of the hole's diameter: the value sits above centre, where the chord
+  // is already shorter than the full span, and it should not graze the ring.
+  var centerFs = _fitFont(centerTop, (size - thick * 2) * 0.84,
+                          size > 150 ? 24 : 19, 12);
+
   var chart = h("div", { style: { position: 'relative', width: size, height: size, flexShrink: 0 } },
     h("svg", { width: size, height: size, viewBox: '0 0 ' + size + ' ' + size,
                role: "img", "aria-label": props.ariaLabel || props.centerLabel || 'Donut chart',
@@ -1941,7 +1967,8 @@ function Donut(props) {
                         flexDirection: 'column', alignItems: 'center',
                         justifyContent: 'center', pointerEvents: 'none' } },
       h("div", { style: { fontFamily: 'var(--display)', fontWeight: 900,
-                          fontSize: size > 150 ? 24 : 19, lineHeight: 1, color: ink } },
+                          fontSize: centerFs, lineHeight: 1, color: ink,
+                          whiteSpace: 'nowrap' } },
         centerTop),
       h("div", { style: { fontSize: 9, color: ink3, fontFamily: 'var(--mono)',
                           marginTop: 3, textAlign: 'center', maxWidth: size - thick * 2 - 8,

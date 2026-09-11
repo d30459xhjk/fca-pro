@@ -35,6 +35,7 @@ None.
 | 18 | 2026-07-30 | Switching theme changed the typography, not just the colours | Font family, size, casing, tracking and nav radius lived under `html.theme-console` only, so Light/HC rendered a different UI. Promoted to base rules; theme blocks carry colour | uncommitted |
 | 19 | 2026-07-30 | The same filter chip rendered three different ways across Projects, Assessment and Portfolio | Projects and Capital Plan hand-styled copies of `.sort-chip` inline (own radius, size, `#000` text) instead of using the class | uncommitted |
 | 20 | 2026-07-30 | Selects rendered as native menulist boxes — wrong colour and taller than the controls beside them | No `appearance:none`; the 16px iOS anti-zoom size also applied on desktop. Selects now use the app's own caret, and 16px is scoped to `pointer:coarse` | uncommitted |
+| 21 | 2026-09-11 | "$53,664,500" in the cost donut's centre overran the ring on both sides | The centre value was a hard-coded 24px, sized for "163"; the hole is 118px and the currency string measures ~130px. It is now measured in the real display face and stepped down to fit, so any value or hover value clears the ring | 57b9578 |
 
 ## Investigated, not a bug
 

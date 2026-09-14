@@ -36,10 +36,10 @@ None.
 | 19 | 2026-07-30 | The same filter chip rendered three different ways across Projects, Assessment and Portfolio | Projects and Capital Plan hand-styled copies of `.sort-chip` inline (own radius, size, `#000` text) instead of using the class | uncommitted |
 | 20 | 2026-07-30 | Selects rendered as native menulist boxes — wrong colour and taller than the controls beside them | No `appearance:none`; the 16px iOS anti-zoom size also applied on desktop. Selects now use the app's own caret, and 16px is scoped to `pointer:coarse` | uncommitted |
 | 21 | 2026-09-11 | "$53,664,500" in the cost donut's centre overran the ring on both sides | The centre value was a hard-coded 24px, sized for "163"; the hole is 118px and the currency string measures ~130px. It is now measured in the real display face and stepped down to fit, so any value or hover value clears the ring | 57b9578 |
-| 22 | 2026-09-13 | Projects summary always read "0 Critical Projects" | Counted `priority==='1-Critical'`, but stored priorities are `'1 - Currently Critical (1 Year)'`; now `parseInt(priority)===1` (sample: 12) | uncommitted |
-| 23 | 2026-09-13 | Capital Plan / Total Overview funding bars rendered green in a monochrome theme | Bars used `var(--ok,#4fd86a)` and `--ok` is defined in no theme, so the fallback green always won; bars now use neutral ink | uncommitted |
-| 24 | 2026-09-13 | Buildings card cost tile showed "$53,66…"; Edit button read "Edit Edit" | A full currency string in a quarter-width tile; now `$53.7M` with the exact figure as tooltip. Label typo | uncommitted |
-| 25 | 2026-09-13 | Stat tiles clipped long currency values on phones ("$130,299,37…") | Two-column `.stats` kept the 26px value; the value now scales with viewport width under the mobile breakpoint | uncommitted |
+| 22 | 2026-09-13 | Projects summary always read "0 Critical Projects" | Counted `priority==='1-Critical'`, but stored priorities are `'1 - Currently Critical (1 Year)'`; now `parseInt(priority)===1` (sample: 12) | d1d08d8 |
+| 23 | 2026-09-13 | Capital Plan / Total Overview funding bars rendered green in a monochrome theme | Bars used `var(--ok,#4fd86a)` and `--ok` is defined in no theme, so the fallback green always won; bars now use neutral ink | d1d08d8 |
+| 24 | 2026-09-13 | Buildings card cost tile showed "$53,66…"; Edit button read "Edit Edit" | A full currency string in a quarter-width tile; now `$53.7M` with the exact figure as tooltip. Label typo | d1d08d8 |
+| 25 | 2026-09-13 | Stat tiles clipped long currency values on phones ("$130,299,37…") | Two-column `.stats` kept the 26px value; the value now scales with viewport width under the mobile breakpoint | d1d08d8 |
 
 ## Investigated, not a bug
 

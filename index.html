@@ -171,10 +171,11 @@ html,body,#root{height:100%;overflow:hidden;background:var(--bg);color:var(--tx)
   .body,.shell{display:block!important}
   body,html{background:#fff!important;color:#000!important;overflow:auto!important}
   @page{size:letter;margin:0}
-  html.rp-open,html.rp-open body{height:auto!important;overflow:visible!important}
+  html.rp-open,html.rp-open body{height:auto!important;overflow:visible!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   html.rp-open body>*:not(.print-preview){display:none!important}
   html.rp-open .print-preview{position:static!important;inset:auto!important;overflow:visible!important;background:none!important}
   html.rp-open.rp-dark,html.rp-open.rp-dark body{background:#0C0C0F!important}
+  html.rp-open.rp-light,html.rp-open.rp-light body{background:#FFFFFF!important}
   .print-preview,.print-preview *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   .pp-page{max-width:none!important;margin:0!important;border:0!important;border-radius:0!important;box-shadow:none!important;break-after:page;page-break-after:always}
   .pp-page:last-child{break-after:auto;page-break-after:auto}
@@ -251,17 +252,17 @@ html,body,#root{height:100%;overflow:hidden;background:var(--bg);color:var(--tx)
 .rp-fci-ticks span:first-child{transform:none}
 .rp-fci-note{font-size:10.5px;color:var(--tx3);margin-top:6px}
 .rp-table{width:100%;border-collapse:collapse;font-size:11.5px}
-.rp-table th{background:none;padding:0 10px 8px;text-align:left;font:600 9px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);border-bottom:1px solid var(--br2);white-space:nowrap}
-.rp-table td{padding:9px 10px;border-bottom:1px solid var(--br);color:var(--tx);vertical-align:top}
-.rp-table th:first-child,.rp-table td:first-child{padding-left:0}
-.rp-table th:last-child,.rp-table td:last-child{padding-right:0}
-.rp-table .n{text-align:right;font-family:var(--mono);white-space:nowrap}
-.rp-table .m{font-family:var(--mono);color:var(--tx3)}
-.rp-table .z{color:var(--tx4)}
+.print-preview .rp-table th{background:none;padding:0 10px 8px;text-align:left;font:600 9px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--tx3);border-bottom:1px solid var(--br2);white-space:nowrap}
+.print-preview .rp-table td{padding:9px 10px;border-bottom:1px solid var(--br);color:var(--tx);vertical-align:top}
+.print-preview .rp-table th:first-child,.print-preview .rp-table td:first-child{padding-left:0}
+.print-preview .rp-table th:last-child,.print-preview .rp-table td:last-child{padding-right:0}
+.print-preview .rp-table .n{text-align:right;font-family:var(--mono);white-space:nowrap}
+.print-preview .rp-table .m{font-family:var(--mono);color:var(--tx3)}
+.print-preview .rp-table .z{color:var(--tx4)}
 .rp-table tr{break-inside:avoid}
-.rp-table tr:hover td{background:none}
-.rp-table tr.rp-total td{border-top:1px solid var(--br2);border-bottom:0;font-weight:700;padding-top:11px}
-.rp-table .sub{display:block;font-size:10px;color:var(--tx3);margin-top:2px}
+.print-preview .rp-table tr:hover td{background:none}
+.print-preview .rp-table tr.rp-total td{border-top:1px solid var(--br2);border-bottom:0;font-weight:700;padding-top:11px}
+.print-preview .rp-table .sub{display:block;font-size:10px;color:var(--tx3);margin-top:2px}
 .rp-cond{display:inline-block;font:700 9.5px var(--mono);letter-spacing:.04em;padding:1px 6px;border:1px solid;border-radius:4px;white-space:nowrap}
 .rp-proj{position:relative;border:1px solid var(--br);border-radius:var(--r2);padding:14px 16px 14px 20px;margin-bottom:8px;background:var(--bg2);break-inside:avoid;overflow:hidden}
 .rp-proj::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--pc,var(--br3))}
@@ -273,6 +274,18 @@ html,body,#root{height:100%;overflow:hidden;background:var(--bg);color:var(--tx)
 .rp-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
 .rp-chip{font:500 9.5px var(--mono);color:var(--tx2);border:1px solid var(--br);border-radius:999px;padding:2px 8px;white-space:nowrap}
 .rp-proj-notes{font-size:11.5px;line-height:1.55;color:var(--tx2);margin-top:8px}
+.rp-legend{display:flex;gap:18px;flex-wrap:wrap;font:500 10px var(--mono);color:var(--tx2);margin-bottom:14px}
+.rp-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.rp-legend i.e,.rp-bar.e{background:var(--tx)}
+.rp-legend i.a,.rp-bar.a{background:var(--tx3)}
+.rp-bars{display:flex;align-items:flex-end;gap:10px;height:120px;border-bottom:1px solid var(--br2);break-inside:avoid}
+.rp-yr{flex:1;display:flex;align-items:flex-end;justify-content:center;gap:3px;height:100%;min-width:0}
+.rp-bar{flex:1;max-width:22px;border-radius:2px 2px 0 0}
+.rp-yrs{display:flex;gap:10px;margin-top:6px}
+.rp-yrs span{flex:1;text-align:center;font:500 9px var(--mono);color:var(--tx3);min-width:0}
+.rp-yrtable{margin-top:12px;font-size:9.5px}
+.print-preview .rp-yrtable th,.print-preview .rp-yrtable td{padding:6px 4px}
+.rp-yrtable th{font-size:8.5px;letter-spacing:.05em}
 .rp-note{margin-top:30px;padding:14px 16px;border-left:2px solid var(--br3);background:var(--bg3);border-radius:0 var(--r) var(--r) 0;font-size:10.5px;line-height:1.6;color:var(--tx2);break-inside:avoid}
 @media screen and (max-width:760px){.pp-page{margin:10px}.rp-run,.rp-foot{padding-left:20px;padding-right:20px}.rp-body{padding:24px 20px}.rp-cover{padding:24px 20px;min-height:0}.rp-cover-title{font-size:34px}.rp-code{font-size:90px}.rp-heroes,.rp-stats,.rp-charts,.rp-cover-meta{grid-template-columns:1fr 1fr}.rp-hero-v{font-size:22px}.rp-table{font-size:10.5px}}
 /* Sortable table headers */
@@ -2362,6 +2375,60 @@ function rpProjectsByPriority(projs,pal,extraFor){
       g.list.sort(function(a,b){return (b.tc||0)-(a.tc||0);}).map(function(p){return rpProject(p,pal,extraFor?extraFor(p):null);}));
   });
 }
+/* Renewal cost by the year it falls due. Overdue work is held apart from
+   this year's so one backlog bar does not flatten the other nine years. */
+function _rpSchedule(items,model,now){
+  var years=[];for(var y=0;y<10;y++)years.push(now+y);
+  var by={};years.forEach(function(y){by[y]=0;});var overdue=0,beyond=0;
+  items.forEach(function(i){var c=_replCost(i);if(c<=0)return;var ry=_replYear(i,model,now);
+    if(ry<now)overdue+=c;else if(ry>=now+10)beyond+=c;else by[ry]+=c;});
+  return{years:years,by:by,overdue:overdue,beyond:beyond,ten:years.reduce(function(a,y){return a+by[y];},0)};
+}
+function _rpK(v){v=+v||0;if(!v)return '–';if(v>=1e6)return (v/1e6).toFixed(v>=1e7?0:1)+'M';if(v>=1e3)return Math.round(v/1e3)+'K';return String(Math.round(v));}
+function rpProjection(E,A){
+  var h=React.createElement;
+  var max=Math.max.apply(null,[1].concat(E.years.map(function(y){return Math.max(E.by[y],A.by[y]);})));
+  function bar(v,cls,y,lbl){return h("div",{className:"rp-bar "+cls,title:y+' '+lbl+': '+(fmt$(v)||'$0'),style:{height:v?Math.max(2,Math.round(v/max*116))+'px':'1px',opacity:v?1:.35}});}
+  return h("div",{style:{breakInside:'avoid'}},
+    h("div",{className:"rp-legend"},h("span",null,h("i",{className:"e"}),"Expected Life Cycle (ELC)"),h("span",null,h("i",{className:"a"}),"Actual Life Cycle (ALC)")),
+    h("div",{className:"rp-bars"},E.years.map(function(y){return h("div",{key:y,className:"rp-yr"},bar(E.by[y],'e',y,'ELC'),bar(A.by[y],'a',y,'ALC'));})),
+    h("div",{className:"rp-yrs"},E.years.map(function(y){return h("span",{key:y},y);})),
+    h("table",{className:"rp-table rp-yrtable"},
+      h("thead",null,h("tr",null,h("th",null,"$"),h("th",{className:"n"},"Overdue"),E.years.map(function(y){return h("th",{key:y,className:"n"},"'"+String(y).slice(2));}),h("th",{className:"n"},"10-yr"),h("th",{className:"n"},"Later"))),
+      h("tbody",null,[['ELC',E],['ALC',A]].map(function(r){var d=r[1];return h("tr",{key:r[0]},
+        h("td",{className:"m"},r[0]),h("td",{className:"n"+(d.overdue?"":" z")},_rpK(d.overdue)),
+        E.years.map(function(y){return h("td",{key:y,className:"n"+(d.by[y]?"":" z")},_rpK(d.by[y]));}),
+        h("td",{className:"n",style:{fontWeight:700}},_rpK(d.ten)),h("td",{className:"n"+(d.beyond?"":" z")},_rpK(d.beyond)));}))));
+}
+function rpTargets(deferred,crv){
+  var h=React.createElement;if(!(crv>0))return null;
+  return h("table",{className:"rp-table"},
+    h("thead",null,h("tr",null,h("th",null,"Target FCI"),h("th",{className:"n"},"Need allowed"),h("th",{className:"n"},"Investment required"))),
+    h("tbody",null,[0.05,0.10,0.30].map(function(t){var allow=t*crv,inv=Math.max(0,deferred-allow);return h("tr",{key:t},
+      h("td",{style:{fontWeight:600}},Math.round(t*100)+"%",h("span",{className:"sub"},t===0.05?"Good":t===0.10?"Fair":"Poor ceiling")),
+      h("td",{className:"n m"},fmt$(allow)),h("td",{className:"n",style:{fontWeight:700}},inv?fmt$(inv):'Met'));})));
+}
+function rpPriorityKV(b){
+  var h=React.createElement;var mdi=bpiMDI(b),bqi=bpiBQI(b),mc=bpiMDICat(mdi),qc=bpiBQICat(bqi),q=bpiQuad(mdi,bqi);
+  var kv=function(l,v){return h("div",{className:"rp-cm",key:l},h("span",null,l),h("b",null,v));};
+  return rpFrag(kv("Mission dependency",mdi==null?'Unrated':mdi+' · '+mc.l),kv("Building quality",bqi==null?'Unrated':bqi+' · '+qc.l),
+    kv("Capital action",q.k?q.l:'Unrated'),kv("Priority weight",bpiWeight(mdi).toFixed(2)+'× on deferred need'),
+    h("div",{className:"rp-fci-note",style:{marginTop:10}},q.d));
+}
+function rpPriority(b){
+  var mdi=bpiMDI(b),bqi=bpiBQI(b),mc=bpiMDICat(mdi),qc=bpiBQICat(bqi),q=bpiQuad(mdi,bqi);
+  return rpFrag(
+    rpStats([{v:mdi==null?'—':String(mdi),l:"Mission dependency",sub:mc.l},{v:bqi==null?'—':String(bqi),l:"Building quality",sub:qc.l},
+             {v:q.k||'—',l:"Capital action",sub:q.l},{v:bpiWeight(mdi).toFixed(2)+'×',l:"Priority weight",sub:"applied to deferred need"}]),
+    React.createElement("div",{className:"rp-fci-note",style:{marginTop:8}},q.d));
+}
+function _rpBandRows(rows,pal,ramp){
+  var order=['Good','Fair','Poor','Critical','Divest','Unrated'],n={};
+  rows.forEach(function(r){var l=_rpFci(r.plan.fci,pal).l;n[l]=(n[l]||0)+1;});
+  var col={Good:pal.BC1,Fair:pal.BC2,Poor:pal.BC5,Critical:pal.BC6,Divest:ramp[0],Unrated:ramp[ramp.length-1]};
+  var rng={Good:'< 5%',Fair:'5–10%',Poor:'10–30%',Critical:'30–50%',Divest:'> 50%',Unrated:'no GSF'};
+  return order.map(function(k){return{key:k,label:k+' · '+rng[k],value:n[k]||0,color:col[k]};});
+}
 const RP_DISCLAIMER="This assessment is based on visual observation and does not replace a detailed engineering investigation. Cost estimates are approximate and subject to field verification. Replacement value is estimated from gross square footage at the stated $/SF rate. Structural, hazardous-material and specialty systems should be evaluated by licensed professionals. UNIFORMAT II classification per ASTM E1557.";
 
 function ReportShell(props){
@@ -2394,7 +2461,7 @@ function ReportShell(props){
       if(pg.cover)return h("div",{key:i,className:"pp-page rp-cover"},pg.body);
       return h("div",{key:i,className:"pp-page"},
         h("div",{className:"rp-run"},rpMark(),h("span",null,props.runTitle),h("span",{className:"rp-run-r"},props.runRight)),
-        h("div",{className:"rp-body"},pg.body),
+        h("div",{className:"rp-body"},pg.body,i===total-1?h("div",{className:"rp-note"},RP_DISCLAIMER):null),
         h("div",{className:"rp-foot"},h("span",null,props.footLeft),h("span",null,pad(i+1)+" / "+pad(total))));
     }));
   return ReactDOM.createPortal(tree,document.body);
@@ -2419,7 +2486,6 @@ function PrintReport({building,items,projects,campuses,clients,onClose}){
   const p1=eProjs.filter(p=>parseInt(p.priority,10)===1).length;
   const priPairs=(()=>{const m={};eProjs.forEach(p=>{const q=_priShort(p.priority);if(!m[q.k])m[q.k]={q,c:0};m[q.k].c+=p.tc;});return Object.keys(m).map(k=>m[k]).sort((a,b)=>a.q.n-b.q.n).map(x=>[x.q.l,x.c]);})();
   const topBC=Object.keys(condCost).sort((a,b)=>condCost[b]-condCost[a])[0];
-  const topDef=items.filter(i=>_rpCost(i)>0).sort((a,b)=>_rpCost(b)-_rpCost(a)).slice(0,10);
   const initials=(building.name||'').split(/\s+/).map(w=>w[0]).join('').slice(0,3).toUpperCase();
   return h(ReportShell,{title:"Facility condition report — "+building.name,onClose,
     runTitle:"Facility Condition Assessment · "+(building.name||''),runRight:clientName||campusName||'',
@@ -2460,34 +2526,26 @@ function PrintReport({building,items,projects,campuses,clients,onClose}){
               ['BC1','BC2','BC3','BC4','BC5','BC6'].map(bc=>h("td",{key:bc,className:"n"+(d.counts[bc]?"":" z"),style:d.counts[bc]?{color:pal[bc],fontWeight:700}:null},d.counts[bc]||0)),
               h("td",{className:"n"+(d.pf?"":" z"),style:d.pf?{fontWeight:700}:null},d.pf),h("td",{className:"n",style:{fontWeight:600}},fmt$(d.cost)||'—'))),
             h("tr",{className:"rp-total"},h("td",null,"Total"),h("td",{className:"n"},items.length),['BC1','BC2','BC3','BC4','BC5','BC6'].map(bc=>h("td",{key:bc,className:"n"},allC[bc]||0)),h("td",{className:"n"},poorFail),h("td",{className:"n"},fmt$(totalCost)||'$0')))),
-        topDef.length?[rpSub("Largest deficiencies","top "+topDef.length+" by estimated cost"),
-          h("table",{className:"rp-table"},
-            h("thead",null,h("tr",null,h("th",null,"Item"),h("th",null,"System"),h("th",null,"Cond"),h("th",null,"Priority"),h("th",{className:"n"},"Est. cost"))),
-            h("tbody",null,topDef.map(i=>h("tr",{key:i.id},
-              h("td",null,i.item_description||'—',i.floor_zone?h("span",{className:"sub"},i.floor_zone):null),
-              h("td",{className:"m"},i.sheet||'—'),h("td",null,rpCond(i.condition,pal)),
-              h("td",{className:"m"},i.priority?_priShort(i.priority).k:'—'),
-              h("td",{className:"n",style:{fontWeight:700}},fmt$(_rpCost(i)))))))]:null)});
+        null)});
+      {const now=new Date().getFullYear(),E=_rpSchedule(items,'ELC',now),A=_rpSchedule(items,'ALC',now);
+      pages.push({body:rpFrag(
+        rpSec(no(),"Capital Plan","replacement value @ $"+rate+"/SF"),
+        rpLede("Over the next ten years ",rpB(fmt$(E.ten)||'$0')," of renewal falls due on the Expected Life Cycle schedule",
+          E.overdue?[", on top of ",rpB(fmt$(E.overdue))," already past its expected life"]:null,
+          ". Scheduled instead on the condition recorded in the field (Actual Life Cycle), the ten-year figure is ",rpB(fmt$(A.ten)||'$0'),"."),
+        rpStats([{v:P.fci==null?'—':_rpPct(P.fci),l:"Facility Condition Index",sub:band.l,c:band.c},{v:fmt$(P.deferred)||'$0',l:"Deferred need"},
+                 {v:fmt$(P.crv)||'—',l:"Replacement value",sub:P.crv?"@ $"+rate+"/SF":"needs GSF"},{v:fmt$Short(E.ten),l:"10-yr renewal · ELC",sub:E.overdue?fmt$Short(E.overdue)+" overdue":"nothing overdue"}]),
+        rpSub("10-year funding projection","renewal cost by year due"),
+        rpProjection(E,A),
+        rpSub("Investment and priority"),
+        rpCharts([P.crv>0?rpCard("Investment to reach a target FCI",null,rpTargets(P.deferred,P.crv)):null,
+                  rpCard("Building priority index","mission × quality",rpPriorityKV(building))]))});}
       if(eProjs.length)pages.push({body:rpFrag(
         rpSec(no(),"Capital Projects",_rpPlural(eProjs.length,'project')+" · "+(fmt$(projTotal)||'$0')),
         rpCharts([
           rpCard("Cost by priority",fmt$(projTotal),rpDonut(rampRows(priPairs,ctx.ramp,true),{centerLabel:"Project cost",ariaLabel:"Project cost by priority",fmt:fmt$,sliceLabel:_pctLabel,emptyText:"No costed projects"})),
           rpCard("Projects by condition",_rpPlural(eProjs.length,'project'),rpDonut(condRows(eProjs.reduce((a,p)=>{if(p.condition)a[p.condition]=(a[p.condition]||0)+1;return a;},{}),pal),{centerLabel:"Projects",ariaLabel:"Projects by condition rating",emptyText:"No project carries a rating"}))]),
         rpProjectsByPriority(eProjs,pal))});
-      pages.push({body:rpFrag(
-        rpSec(no(),"Deficiency Log",_rpPlural(items.filter(i=>i.condition).length,'rated item')),
-        SHEETS.map(s=>{const si=items.filter(i=>i.sheet===s&&i.condition).sort((a,b)=>(b.condition||'').localeCompare(a.condition||'')||_rpCost(b)-_rpCost(a));if(!si.length)return null;
-          return h("div",{key:s},rpSub(s,_rpPlural(si.length,'item')+" · "+(fmt$(si.reduce((a,i)=>a+_rpCost(i),0))||'$0')),
-            h("table",{className:"rp-table"},
-              h("thead",null,h("tr",null,h("th",null,"Item"),h("th",null,"UNIFORMAT"),h("th",null,"Cond"),h("th",null,"Repl."),h("th",null,"Pri."),h("th",{className:"n"},"Cost"),h("th",null,"Deficiency notes"))),
-              h("tbody",null,si.map(i=>h("tr",{key:i.id},
-                h("td",{style:{maxWidth:190}},i.item_description||'—',i.floor_zone?h("span",{className:"sub"},i.floor_zone):null),
-                h("td",{className:"m"},i.uniformat_code||'—'),h("td",null,rpCond(i.condition,pal)),
-                h("td",{className:"m",style:i.replace_flag==='CR'?{color:pal.BC6,fontWeight:700}:null},i.replace_flag||'—'),
-                h("td",{className:"m"},i.priority?_priShort(i.priority).k:'—'),
-                h("td",{className:"n",style:{fontWeight:600}},_rpCost(i)>0?fmt$(_rpCost(i)):'—'),
-                h("td",{style:{fontSize:10.5,color:'var(--tx2)',maxWidth:230}},(i.deficiency_notes||'').length>140?i.deficiency_notes.substring(0,140)+'…':(i.deficiency_notes||'')))))));}),
-        h("div",{className:"rp-note"},RP_DISCLAIMER))});
       return pages;
     }});
 }
@@ -2560,24 +2618,38 @@ function ClientReport({client:cli,campuses,buildings,items,projects,onClose}){
               h("td",{className:"n",style:{fontWeight:600}},fmt$(c.deferred)||'—'));}),
             h("tr",{className:"rp-total"},h("td",null,"Portfolio"),h("td",{className:"n"},cliBldgs.length),h("td",{className:"n"},cliItems.length),h("td",{className:"n"},poor),
               h("td",{className:"n",style:band.c?{color:band.c}:null},fci==null?'—':_rpPct(fci)),h("td",{className:"n"},fmt$(deferred)||'$0')))),
-        rpSub("Buildings ranked by need"),
+        rpSub("Buildings ranked by need","with building priority index"),
         h("table",{className:"rp-table"},
-          h("thead",null,h("tr",null,h("th",{className:"n",style:{width:24,textAlign:'left'}},"#"),h("th",null,"Building"),h("th",{className:"n"},"GSF"),h("th",{className:"n"},"Items"),h("th",{className:"n"},"Poor/Fail"),h("th",{className:"n"},"CR"),h("th",{className:"n"},"FCI"),h("th",{className:"n"},"Est. need"))),
-          h("tbody",null,ranked.map((r,ix)=>{const f=_rpFci(r.plan.fci,pal);return h("tr",{key:r.b.id},
+          h("thead",null,h("tr",null,h("th",{className:"n",style:{width:24,textAlign:'left'}},"#"),h("th",null,"Building"),h("th",{className:"n"},"Items"),h("th",{className:"n"},"Poor/Fail"),h("th",null,"Mission"),h("th",null,"Action"),h("th",{className:"n"},"FCI"),h("th",{className:"n"},"Est. need"))),
+          h("tbody",null,ranked.map((r,ix)=>{const f=_rpFci(r.plan.fci,pal);const mdi=bpiMDI(r.b),quad=bpiQuad(mdi,bpiBQI(r.b));return h("tr",{key:r.b.id},
             h("td",{className:"m"},ix+1),
-            h("td",{style:{fontWeight:600}},r.b.name,r.b.number?h("span",{className:"m",style:{fontWeight:400}}," #"+r.b.number):null,h("span",{className:"sub"},campName(r.b.campus_id))),
-            h("td",{className:"n m"},r.b.gsf?Number(r.b.gsf).toLocaleString():'—'),h("td",{className:"n"},r.its.length),
-            h("td",{className:"n"+(r.poor?"":" z")},r.poor),h("td",{className:"n"+(r.cr?"":" z"),style:r.cr?{color:pal.BC6,fontWeight:700}:null},r.cr),
+            h("td",{style:{fontWeight:600}},r.b.name,r.b.number?h("span",{className:"m",style:{fontWeight:400}}," #"+r.b.number):null,h("span",{className:"sub"},campName(r.b.campus_id)+(r.b.gsf?' · '+Number(r.b.gsf).toLocaleString()+' GSF':''))),
+            h("td",{className:"n"},r.its.length),
+            h("td",{className:"n"+(r.poor?"":" z")},r.poor),
+            h("td",null,mdi==null?h("span",{className:"z"},"Unrated"):bpiMDICat(mdi).l,mdi!=null?h("span",{className:"sub"},"MDI "+mdi+" · weight "+bpiWeight(mdi).toFixed(2)+"×"):null),
+            h("td",{className:"m"},quad.k?quad.l:'—'),
             h("td",{className:"n",style:f.c?{color:f.c,fontWeight:700}:null},r.plan.fci==null?'—':_rpPct(r.plan.fci)),
-            h("td",{className:"n",style:{fontWeight:700}},fmt$(r.plan.deferred)||'—'));}))),
-        !eProjs.length?h("div",{className:"rp-note"},RP_DISCLAIMER):null)});
+            h("td",{className:"n",style:{fontWeight:700}},fmt$(r.plan.deferred)||'—'));}))))});
+      {const now=new Date().getFullYear(),E=_rpSchedule(cliItems,'ELC',now),A=_rpSchedule(cliItems,'ALC',now);
+      pages.push({body:rpFrag(
+        rpSec(no(),"Capital Plan","replacement value @ $"+rate+"/SF"),
+        rpLede("Across the portfolio, ",rpB(fmt$(E.ten)||'$0')," of renewal falls due in the next ten years on the Expected Life Cycle schedule",
+          E.overdue?[", on top of ",rpB(fmt$(E.overdue))," already past its expected life"]:null,
+          ". On the condition recorded in the field (Actual Life Cycle) the ten-year figure is ",rpB(fmt$(A.ten)||'$0'),"."),
+        rpStats([{v:fci==null?'—':_rpPct(fci),l:"Blended FCI",sub:band.l,c:band.c},{v:fmt$(deferred)||'$0',l:"Deferred need"},
+                 {v:fmt$(crv)||'—',l:"Replacement value",sub:crv?"@ $"+rate+"/SF":"needs GSF"},{v:fmt$Short(E.ten),l:"10-yr renewal · ELC",sub:E.overdue?fmt$Short(E.overdue)+" overdue":"nothing overdue"}]),
+        rpSub("10-year funding projection","all buildings · renewal cost by year due"),
+        rpProjection(E,A),
+        rpSub("Index and investment"),
+        rpCharts([
+          rpCard("Buildings by FCI rating",_rpPlural(rows.length,'building'),rpDonut(_rpBandRows(rows,pal,ctx.ramp),{centerLabel:rows.length===1?"Building":"Buildings",ariaLabel:"Buildings by FCI rating",sliceLabel:x=>String(x.value),emptyText:"No buildings"})),
+          crv>0?rpCard("Investment to reach a target FCI",null,rpTargets(deferred,crv)):null]))});}
       if(eProjs.length)pages.push({body:rpFrag(
         rpSec(no(),"Capital Projects",_rpPlural(eProjs.length,'project')+" · "+(fmt$(projTotal)||'$0')),
         rpCharts([
           rpCard("Cost by priority",fmt$(projTotal),rpDonut(rampRows(priPairs,ctx.ramp,true),{centerLabel:"Project cost",ariaLabel:"Project cost by priority",fmt:fmt$,sliceLabel:_pctLabel,emptyText:"No costed projects"})),
           rpCard("Projects by condition",_rpPlural(eProjs.length,'project'),rpDonut(condRows(eProjs.reduce((a,p)=>{if(p.condition)a[p.condition]=(a[p.condition]||0)+1;return a;},{}),pal),{centerLabel:"Projects",ariaLabel:"Projects by condition rating",emptyText:"No project carries a rating"}))]),
-        rpProjectsByPriority(eProjs,pal,p=>{const b=cliBldgs.find(x=>x.id===p.building_id);return b?b.name:null;}),
-        h("div",{className:"rp-note"},RP_DISCLAIMER))});
+        rpProjectsByPriority(eProjs,pal,p=>{const b=cliBldgs.find(x=>x.id===p.building_id);return b?b.name:null;}))});
       return pages;
     }});
 }

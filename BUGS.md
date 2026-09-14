@@ -42,10 +42,10 @@ None.
 | 25 | 2026-09-13 | Stat tiles clipped long currency values on phones ("$130,299,37…") | Two-column `.stats` kept the 26px value; the value now scales with viewport width under the mobile breakpoint | d1d08d8 |
 | 26 | 2026-09-13 | Every project card wore the lowest-priority accent | `PRI_PC` was keyed `'1-Critical'`…`'5-Monitor'`, a scheme no stored priority uses (`'1 - Currently Critical (1 Year)'`), so the lookup always fell back to `p5`; now keyed on the leading number | d858f33 |
 | 27 | 2026-09-13 | Catalog editor's Delete sheet / Delete section / item x buttons were blank in the dark theme | Inline `color:var(--rd)` on a light `.btn` fill, and `--rd` is near-white under theme-console; now the `.btn-d` danger class | d858f33 |
-| 28 | 2026-09-13 | Printing a report produced one page | The preview was a fixed, scrolling overlay inside `#root`, and `html,body` keep `height:100%;overflow:hidden`, so print captured one viewport. The report now portals to `<body>`; print hides the app, releases the height and lets pages flow (the sample building prints 24 pages) | pending |
-| 29 | 2026-09-13 | Client report said "0 Poor / Urgent items" | Counted legacy `condition` names `Poor`/`Urgent`; items carry `BC5`/`BC6` (sample: 114). Its condition bar used the same lookup and fell back to grey | pending |
-| 30 | 2026-09-13 | Dark-theme reports printed pale text on white paper | `.pp-page` went dark under theme-console, but browsers drop backgrounds when printing; the report now sets `print-color-adjust:exact` and has its own Dark/Light paper choice | pending |
-| 31 | 2026-09-13 | Client report left out projects below priority 4 | The rollup iterated a hard-coded list of four priorities, while the total above it summed every project; it now groups whatever priorities exist | pending |
+| 28 | 2026-09-13 | Printing a report produced one page | The preview was a fixed, scrolling overlay inside `#root`, and `html,body` keep `height:100%;overflow:hidden`, so print captured one viewport. The report now portals to `<body>`; print hides the app, releases the height and lets pages flow (the sample building prints 24 pages) | f34e4e9 |
+| 29 | 2026-09-13 | Client report said "0 Poor / Urgent items" | Counted legacy `condition` names `Poor`/`Urgent`; items carry `BC5`/`BC6` (sample: 114). Its condition bar used the same lookup and fell back to grey | f34e4e9 |
+| 30 | 2026-09-13 | Dark-theme reports printed pale text on white paper | `.pp-page` went dark under theme-console, but browsers drop backgrounds when printing; the report now sets `print-color-adjust:exact` and has its own Dark/Light paper choice | f34e4e9 |
+| 31 | 2026-09-13 | Client report left out projects below priority 4 | The rollup iterated a hard-coded list of four priorities, while the total above it summed every project; it now groups whatever priorities exist | f34e4e9 |
 
 ## Investigated, not a bug
 

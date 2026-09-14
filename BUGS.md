@@ -40,8 +40,8 @@ None.
 | 23 | 2026-09-13 | Capital Plan / Total Overview funding bars rendered green in a monochrome theme | Bars used `var(--ok,#4fd86a)` and `--ok` is defined in no theme, so the fallback green always won; bars now use neutral ink | d1d08d8 |
 | 24 | 2026-09-13 | Buildings card cost tile showed "$53,66…"; Edit button read "Edit Edit" | A full currency string in a quarter-width tile; now `$53.7M` with the exact figure as tooltip. Label typo | d1d08d8 |
 | 25 | 2026-09-13 | Stat tiles clipped long currency values on phones ("$130,299,37…") | Two-column `.stats` kept the 26px value; the value now scales with viewport width under the mobile breakpoint | d1d08d8 |
-| 26 | 2026-09-13 | Every project card wore the lowest-priority accent | `PRI_PC` was keyed `'1-Critical'`…`'5-Monitor'`, a scheme no stored priority uses (`'1 - Currently Critical (1 Year)'`), so the lookup always fell back to `p5`; now keyed on the leading number | pending |
-| 27 | 2026-09-13 | Catalog editor's Delete sheet / Delete section / item x buttons were blank in the dark theme | Inline `color:var(--rd)` on a light `.btn` fill, and `--rd` is near-white under theme-console; now the `.btn-d` danger class | pending |
+| 26 | 2026-09-13 | Every project card wore the lowest-priority accent | `PRI_PC` was keyed `'1-Critical'`…`'5-Monitor'`, a scheme no stored priority uses (`'1 - Currently Critical (1 Year)'`), so the lookup always fell back to `p5`; now keyed on the leading number | d858f33 |
+| 27 | 2026-09-13 | Catalog editor's Delete sheet / Delete section / item x buttons were blank in the dark theme | Inline `color:var(--rd)` on a light `.btn` fill, and `--rd` is near-white under theme-console; now the `.btn-d` danger class | d858f33 |
 
 ## Investigated, not a bug
 

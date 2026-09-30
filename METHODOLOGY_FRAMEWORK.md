@@ -43,6 +43,36 @@ Tier = how soon it should land. Effort is a rough shape, not a quote.
       reused BC5/BC6 purely as "the orange/red color" for FCI bands or priority
       (unrelated to item condition, shifted the same way for consistency). Docs →
       Methodology §17 updated to the 5-point table; the old divergence note is gone.
+      **Follow-up:** the `BC` prefix itself was then dropped — `BC` means Building
+      Class elsewhere in this domain, so codes/labels/badges were renamed to a
+      plain `C1`–`C5` prefix (Wes: "BC means Building Class, so shouldn't be named
+      BC for line items"). Stored data now migrates through a third, version-guarded
+      step (`BC1`–`BC5` → `C1`–`C5`); the legacy 6-point remap table still matches
+      on the literal historical `BC4`/`BC5`/`BC6` strings, since those are what
+      old exports actually contain. Also fixed a latent bug surfaced while doing
+      this: the migration block had no "already migrated" guard, so on a second
+      load it would re-interpret already-current values as still needing
+      migration — a genuinely "Fair" item would get silently re-flagged as
+      ambiguous "Adequate" one reload after its first migration. Also caught two
+      CSS badge rules (`.b-bc3`/`.b-bc4`/`.b-bc5` and their `.rp.on-*` equivalents)
+      that were never updated in the original 6→5 migration and had been showing
+      the wrong color band (Urgent/Critical badges rendered orange, not red) —
+      fixed as part of this pass. Caught two more while verifying against a real
+      headless-browser test harness (seeded old-format data through `loadStore`/
+      `importData`, checked idempotency by loading twice, checked computed CSS):
+      the oldest legacy word-based format (`Excellent`/`Poor`/`Urgent`, predating
+      even the 6-point scale) was being double-shifted — its direct mapping to the
+      final scale collided with the old-6-point remap stage keyed on the same
+      strings, so "Poor" landed on Fair and "Urgent" landed on Poor instead of
+      their correct slots; fixed by tagging items the word-remap touches so the
+      6-point stage skips them. And `BC_LABEL`'s C5 entry still read the literal
+      text "Fail" (a leftover from the 6-point label, never updated to the
+      Methodology's "Urgent/Critical" even though the badge/table text elsewhere
+      was correct) — fixed. All of the above verified directly in a browser:
+      legacy-word data, old 6-point data, double-load idempotency, import path,
+      and badge colors under the `hc`/`light` themes (the default theme is
+      intentionally monochrome, so color-only checks there wouldn't have caught
+      anything).
 
 ### Still needed — blocked on Pete
 

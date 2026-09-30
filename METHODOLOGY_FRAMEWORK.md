@@ -31,6 +31,18 @@ Tier = how soon it should land. Effort is a rough shape, not a quote.
 - [x] **3.1** Capital plan horizon bands — the 10-year chart now visually splits
       years 1–5 (detailed plan) from 6–10 (outlook), matching Whitepaper §6
 - [x] CSV export — every assessed item, portfolio-wide, from the topbar
+- [x] **1.1** Condition scale — 6-point BC1–BC6 collapsed to the Methodology's
+      5-point BC1–BC5 (Excellent/Good/Fair/Poor/Urgent-Critical). Decided directly
+      by Wes ("5 point, match methodology") rather than left open for Pete. Old
+      BC3 "Adequate" items keep their stored value (now read as Fair) but are
+      tagged `_bc_migrated:'adequate'` for manual assessor review rather than
+      silently reassigned; BC4–BC6 shift down one slot (Fair→Fair, Poor→Poor,
+      Fail→Urgent/Critical). Migration runs automatically, once, for existing
+      local data and any future JSON import — no user action required. Touched
+      every BC-scale constant, palette, iteration array, and the ~20 sites that
+      reused BC5/BC6 purely as "the orange/red color" for FCI bands or priority
+      (unrelated to item condition, shifted the same way for consistency). Docs →
+      Methodology §17 updated to the 5-point table; the old divergence note is gone.
 
 ### Still needed — blocked on Pete
 
@@ -42,11 +54,6 @@ aligned to that approach." That changes how the items below should be read: none
 of them are obviously bugs to fix — they might just be *this program's
 configuration* — and reshaping them without checking would be wasted, possibly
 actively wrong, work.
-- [ ] **1.1 condition scale** — is the 6-point BC1–BC6 scale this program's configured
-  variant (fine as-is, no migration), or does AEFCA want every program moved to
-  the 5-point default? If it's moving, what's the resolution rule for the BC3
-  "Adequate" items and the BC5/BC6 split — does Pete want a specific mapping rule,
-  or per-item assessor resolution (my default assumption below)?
 - [ ] **1.3 priority model** — same configuration question for the 7-tier priority
   field. If it should split, confirm P6/P7 (New Construction / ADA) really belong
   as flags rather than priority, and confirm P4/P5 should come from lifecycle math
@@ -66,24 +73,33 @@ The rest of this document is the full detail behind both lists.
 
 ## Tier 1 — Rating vocabulary (do first; everything else in the Methodology assumes these exist)
 
-### 1.1 Condition scale: 6-point → 5-point
-**Now:** `BC1–BC6` — Excellent / Good / **Adequate** / Fair / Poor / Fail.
+### 1.1 Condition scale: 6-point → 5-point — DONE
+**Was:** `BC1–BC6` — Excellent / Good / **Adequate** / Fair / Poor / Fail.
 **Methodology §4:** 5 ratings — Excellent / Good / Fair / Poor / **Urgent-Critical**.
-No "Adequate" tier; "Poor" and "Urgent/Critical" are split where the app currently
-has one "Poor/Fail" pair.
-**Gap:** not just a rename — collapsing 6→5 changes what a mid-scale rating means.
-Existing BC3 "Adequate" items land in either Good or Fair depending on the actual
-finding, and BC5/BC6 need to split into Poor vs Urgent-Critical on the same basis.
-**Recommended change:**
-- Re-rate, don't remap blindly. Build a one-time migration screen that shows every
-  BC3 item and asks the assessor to resolve it to Good or Fair (never silent/automatic).
-- Same resolution step for existing BC5 → Poor vs Urgent-Critical, using the
-  `replace_flag==='CR'` / active-failure signal as the default split, assessor-confirmed.
-- Rename the constant (`BC_LABEL`, `BSI_COND`, `COND_RUL`, condition palettes) and every
-  condition badge/table column in one pass once the migration path is decided — this
-  touches `index.html` in ~15+ places, so do it as its own PR, not bundled with other work.
-- Docs → Methodology §17 already carries a bridge note explaining the app is still on
-  the 6-point scale; delete that note the day this ships.
+**Now:** `BC1–BC5` — Excellent / Good / Fair / Poor / Urgent-Critical, matching the
+Methodology exactly.
+**Resolution decided:** Wes chose the direct answer ("5 point, match methodology")
+rather than leaving this open for Pete — §15 client-configuration still applies in
+principle, but this program is standardizing on the Methodology's own scale.
+**How the migration actually works (not a manual re-rate screen, per the original
+proposal — a lighter automatic pass instead):**
+- Unambiguous shifts happen silently: old Fair(BC4)→BC3, Poor(BC5)→BC4,
+  Fail(BC6)→BC5. No meaning changes for these, only the numbering.
+- The one ambiguous case — old BC3 "Adequate" — is **not** auto-resolved to Good or
+  Fair. It keeps its stored value (now displayed/read as Fair, the nearest
+  Methodology tier) but gets tagged `_bc_migrated:'adequate'` on the record, a
+  breadcrumb for a future "needs review" filter/report rather than a blocking
+  screen. Per-item assessor resolution, just deferred instead of forced at load time.
+- Runs once, automatically, in both `loadStore()` (existing local data) and
+  `importData()` (any future JSON backup/import) — no user action, no migration UI.
+- Every constant, palette, and reference renamed/reshaped in one pass: `BC_LABEL`,
+  `BC_LBL`, `BC_HEX`, `BC_PALETTES` (all 8 variants), `COND_RUL`, `BCC`, `BSI_COND`,
+  plus ~26 call sites (iteration arrays, the BC4/BC5 "needs attention" compound
+  check, condition tables/legends) and ~20 unrelated sites that reused BC5/BC6 as
+  "the orange/red color" for FCI bands or priority coloring — all shifted down one
+  slot for consistency, even though those aren't item-condition reads.
+- Docs → Methodology §17 rewritten to the 5-point table; the old bridge note
+  flagging the divergence is removed since the app is now aligned.
 
 ### 1.2 Likelihood / Consequence of Failure: rename + define
 **Now:** two generic 3-tier pills, `Impact` and `Risk` (`IMPACT_OPTS`/`RISK_OPTS`,
@@ -239,11 +255,10 @@ than by the flat `disc`/`sheet` grouping the app uses today. Don't touch the
 
 ## Suggested sequencing
 
-1. **1.2** (LoF/CoF rename) — cheapest, zero schema risk, unblocks nothing but
-   itself.
-2. **1.1** (condition scale) — do alone, it's a real migration.
-3. **1.3** (priority split) — depends on 1.1 being settled so the migration
-   tooling pattern is already proven.
+1. **1.2** (LoF/CoF rename) — done.
+2. **1.1** (condition scale) — done.
+3. **1.3** (priority split) — next up; the 1.1 migration pattern (automatic shift +
+   `_bc_migrated`-style breadcrumb for the ambiguous case) is the template to reuse.
 4. **1.4** (Overall Deficiency Score) — needs a weights/thresholds decision from
    Pete first; code is quick once that's answered.
 5. **2.1–2.3** — independent of each other and of Tier 1, can slot in anytime.

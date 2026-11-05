@@ -48,6 +48,8 @@ None.
 | 31 | 2026-09-13 | Client report left out projects below priority 4 | The rollup iterated a hard-coded list of four priorities, while the total above it summed every project; it now groups whatever priorities exist | f34e4e9 |
 | 32 | 2026-09-13 | Printed dark report stopped part-way down the sheet, white below | Only `.print-preview` descendants had `print-color-adjust:exact`, so the paper colour set on `html`/`body` was dropped; both now print their background | 73534a0 |
 | 33 | 2026-09-13 | Report tables printed with black header bars and faded text on light paper when the app ran in the dark theme | `html.theme-console th/td` (specificity 0,1,2) beat `.rp-table th/td`; report table rules are now scoped under `.print-preview` | 73534a0 |
+| 34 | 2026-11-05 | Dev panel's Who's Online said "Nobody has checked in yet" before its first load finished | Presence state started as `idle`, so an empty list read as a real empty result; it now starts as `loading` | PENDING |
+| 35 | 2026-11-05 | A failed token refresh during the presence heartbeat surfaced as an unhandled promise rejection | `presenceBeat` only caught the `fetch`, not the `_fcaToken()` step before it; the whole chain is now caught | PENDING |
 
 ## Investigated, not a bug
 
